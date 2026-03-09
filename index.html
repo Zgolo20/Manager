@@ -1,0 +1,2697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Nkhuku — Poultry Manager</title>
+
+<!-- PWA Meta -->
+<meta name="theme-color" content="#f5a623"/>
+<meta name="description" content="Six precision tools for poultry farmers — brooder heat, vaccine timing, feed maths, water needs, egg countdown, and nutritional guidance."/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Nkhuku"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="icon-192.svg"/>
+
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+
+<!-- EmailJS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>
+  (function(){
+    emailjs.init({ publicKey: 'CPA3-A_WqnQDkgg7O' });
+  })();
+</script>
+
+<!-- Firebase SDKs -->
+<script type="module">
+  import { initializeApp }                              from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getAuth,
+           signOut,
+           signInWithEmailAndPassword,
+           createUserWithEmailAndPassword,
+           updateProfile,
+           sendPasswordResetEmail,
+           GoogleAuthProvider,
+           FacebookAuthProvider,
+           signInWithPopup,
+           onAuthStateChanged }                         from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+  import { getFirestore, doc, getDoc, setDoc }          from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+  // ══════════════════════════════════════════════════════
+  // ⚙️  PASTE YOUR FIREBASE CONFIG HERE
+  // ──────────────────────────────────────────────────────
+  // 1. Go to https://console.firebase.google.com
+  // 2. Create a project → Add web app → copy firebaseConfig
+  // 3. Authentication → Sign-in method → enable:
+  //      • Email/Password
+  //      • Google
+  //      • Facebook (requires a Facebook App ID — see README)
+  // 4. Firestore Database → Create database (test mode)
+  // ══════════════════════════════════════════════════════
+ // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyCGC7pfU54UXzfGI23HFJg9t_lllIBvkfg",
+  authDomain: "nkhuku-3455f.firebaseapp.com",
+  projectId: "nkhuku-3455f",
+  storageBucket: "nkhuku-3455f.firebasestorage.app",
+  messagingSenderId: "778649010530",
+  appId: "1:778649010530:web:34dee8cad2d4d471656c3b",
+  measurementId: "G-C4517VZ3ZL"
+};
+
+  // ──────────────────────────────────────────────────────
+
+  const fbApp = initializeApp(firebaseConfig);
+  const auth  = getAuth(fbApp);
+  const db    = getFirestore(fbApp);
+
+  const googleProvider   = new GoogleAuthProvider();
+  const facebookProvider = new FacebookAuthProvider();
+
+  // Expose everything to global scope
+  window._fb = {
+    auth, db,
+    signOut, onAuthStateChanged,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    updateProfile,
+    sendPasswordResetEmail,
+    signInWithPopup,
+    googleProvider,
+    facebookProvider,
+    doc, getDoc, setDoc,
+  };
+</script>
+<style>
+/* ═══════════════════════════════════════════════
+   DESIGN TOKENS
+═══════════════════════════════════════════════ */
+:root{
+  --bg:#080a0d;
+  --surface:#10131a;
+  --card:#161b24;
+  --border:rgba(255,255,255,0.07);
+  --border-hi:rgba(255,255,255,0.14);
+  --gold:#f5a623;
+  --green:#4cd964;
+  --blue:#5ac8fa;
+  --red:#ff6b6b;
+  --purple:#bf5af2;
+  --text:#dde2ed;
+  --muted:#6a7285;
+  --r:18px;
+  --r-sm:10px;
+  --font-h:'Fraunces',Georgia,serif;
+  --font-b:'DM Sans',sans-serif;
+  --spring:cubic-bezier(0.34,1.56,0.64,1);
+  --ease:cubic-bezier(0.16,1,0.3,1);
+  --smooth:cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ═══════════════════════════════════════════════
+   RESET
+═══════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--font-b);
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* ═══════════════════════════════════════════════
+   KEYFRAMES
+═══════════════════════════════════════════════ */
+@keyframes fadeDown{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:none}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+@keyframes scaleIn{from{opacity:0;transform:scale(0.88)}to{opacity:1;transform:scale(1)}}
+@keyframes thermo{from{height:0%}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(245,166,35,0)}50%{box-shadow:0 0 20px 4px rgba(245,166,35,0.3)}}
+@keyframes eggWobble{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+@keyframes progressFill{from{width:0%}}
+@keyframes barGrow{from{height:4px}}
+@keyframes gradShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+@keyframes logoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+
+/* ═══════════════════════════════════════════════
+   PWA INSTALL BANNER
+═══════════════════════════════════════════════ */
+#install-banner{
+  position:fixed;bottom:0;left:0;right:0;z-index:500;
+  background:var(--card);border-top:1px solid rgba(245,166,35,0.3);
+  padding:14px 20px;
+  display:flex;align-items:center;gap:14px;
+  transform:translateY(100%);
+  transition:transform 500ms var(--spring);
+}
+#install-banner.show{transform:none}
+#install-banner .install-icon{font-size:2rem;flex-shrink:0}
+#install-banner .install-text{flex:1}
+#install-banner .install-text strong{display:block;font-size:0.95rem;color:var(--text)}
+#install-banner .install-text span{font-size:0.78rem;color:var(--muted)}
+#install-btn{
+  background:var(--gold);color:#000;border:none;border-radius:100px;
+  padding:9px 20px;font-weight:700;font-size:0.85rem;cursor:pointer;
+  white-space:nowrap;flex-shrink:0;
+  transition:transform 140ms var(--spring);
+}
+#install-btn:active{transform:scale(0.93)}
+#dismiss-btn{
+  background:transparent;border:none;color:var(--muted);
+  font-size:1.2rem;cursor:pointer;padding:4px;flex-shrink:0;
+}
+
+/* ═══════════════════════════════════════════════
+   OFFLINE INDICATOR
+═══════════════════════════════════════════════ */
+#offline-bar{
+  position:fixed;top:0;left:0;right:0;z-index:600;
+  background:var(--red);color:#000;
+  text-align:center;font-size:0.78rem;font-weight:600;
+  padding:6px;
+  transform:translateY(-100%);
+  transition:transform 300ms var(--ease);
+}
+#offline-bar.show{transform:none}
+
+/* ═══════════════════════════════════════════════
+   NAV
+═══════════════════════════════════════════════ */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:200;
+  height:78px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 36px;
+  background:rgba(8,10,13,0.55);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  transition:height 300ms var(--ease),
+             backdrop-filter 300ms var(--ease),
+             background 300ms var(--ease);
+  animation:fadeDown 400ms var(--ease) both;
+  will-change:height;
+}
+nav.scrolled{
+  height:58px;
+  background:rgba(8,10,13,0.9);
+  backdrop-filter:blur(24px);
+  -webkit-backdrop-filter:blur(24px);
+}
+.nav-brand{
+  display:flex;align-items:center;gap:10px;
+  cursor:pointer;user-select:none;
+  text-decoration:none;
+}
+.nav-brand .nav-logo-emoji{
+  font-size:2rem;
+  transition:transform 250ms var(--spring);
+  will-change:transform;
+}
+nav.scrolled .nav-brand .nav-logo-emoji{font-size:1.6rem}
+.nav-brand:hover .nav-logo-emoji{transform:scale(1.08) rotate(-2deg)}
+.nav-wordmark{
+  font-family:var(--font-h);font-size:1.3rem;color:var(--gold);
+  transition:font-size 300ms var(--ease);
+}
+nav.scrolled .nav-wordmark{font-size:1.1rem}
+.nav-wordmark em{font-style:italic;color:var(--text);font-weight:300}
+
+.nav-pills{display:flex;gap:4px;flex-wrap:wrap}
+.nav-pill{
+  padding:7px 14px;border-radius:100px;border:none;
+  background:transparent;color:var(--muted);
+  font-family:var(--font-b);font-size:0.8rem;font-weight:500;cursor:pointer;
+  transition:background 180ms,color 180ms,transform 150ms var(--spring);
+  will-change:transform;
+}
+.nav-pill:hover{background:rgba(255,255,255,0.07);color:var(--text);transform:translateY(-1px)}
+.nav-pill.active{background:var(--gold);color:#000;font-weight:700}
+
+/* ═══════════════════════════════════════════════
+   LOGO HERO
+═══════════════════════════════════════════════ */
+.logo-hero{
+  padding-top:100px;
+  display:flex;flex-direction:column;align-items:center;
+  animation:scaleIn 600ms var(--spring) 200ms both;
+  will-change:transform,opacity;
+}
+.logo-hero-emoji{
+  font-size:6.5rem;
+  filter:drop-shadow(0 24px 40px rgba(245,166,35,0.25));
+  animation:logoFloat 4s ease-in-out infinite 800ms;
+  will-change:transform;
+}
+.logo-hero-wordmark{
+  font-family:var(--font-h);font-size:2.2rem;color:var(--gold);
+  margin-top:10px;letter-spacing:-0.5px;
+}
+.logo-hero-wordmark em{font-style:italic;color:var(--text);font-weight:300}
+
+/* ═══════════════════════════════════════════════
+   HERO TEXT
+═══════════════════════════════════════════════ */
+.hero{padding:28px 40px 64px;max-width:860px;margin:0 auto;text-align:center}
+.hero-tag{
+  font-size:0.72rem;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;
+  color:var(--gold);
+  animation:fadeUp 500ms var(--ease) 300ms both;
+}
+.hero h1{
+  font-family:var(--font-h);font-size:clamp(2.6rem,6vw,5rem);
+  line-height:1.04;margin:14px 0 20px;
+  background:linear-gradient(135deg,#fff 30%,rgba(255,255,255,0.45));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.hero h1 .line1{display:block;animation:fadeUp 650ms var(--ease) 420ms both;will-change:transform,opacity}
+.hero h1 .line2{display:block;animation:fadeUp 650ms var(--ease) 570ms both;will-change:transform,opacity}
+.hero h1 em{font-style:italic;-webkit-text-fill-color:var(--gold)}
+.hero p{
+  font-size:1.05rem;color:var(--muted);line-height:1.75;max-width:540px;margin:0 auto;
+  animation:fadeUp 500ms var(--ease) 700ms both;
+}
+.hero-stats{
+  display:flex;gap:28px;margin-top:36px;justify-content:center;
+  animation:fadeUp 500ms var(--ease) 800ms both;
+}
+.h-stat{text-align:center}
+.h-stat-val{font-family:var(--font-h);font-size:2rem;color:var(--gold)}
+.h-stat-lbl{font-size:0.72rem;color:var(--muted);margin-top:2px}
+
+/* ═══════════════════════════════════════════════
+   CONTACT STRIP
+═══════════════════════════════════════════════ */
+.contact-strip{
+  display:flex;justify-content:center;gap:20px;
+  padding:20px 0 0;
+  animation:fadeUp 500ms var(--ease) 900ms both;
+}
+.contact-icon{
+  display:flex;align-items:center;justify-content:center;
+  width:44px;height:44px;border-radius:50%;
+  text-decoration:none;font-size:1.25rem;
+  transition:transform 200ms var(--spring),box-shadow 200ms,background 200ms;
+  will-change:transform;
+}
+.contact-icon:hover{transform:scale(1.18) translateY(-2px)}
+.contact-icon:active{transform:scale(0.9)}
+.ci-whatsapp{background:rgba(37,211,102,0.15);color:#25d366}
+.ci-whatsapp:hover{background:rgba(37,211,102,0.25);box-shadow:0 6px 20px rgba(37,211,102,0.3)}
+.ci-x{background:rgba(255,255,255,0.08);color:#fff}
+.ci-x:hover{background:rgba(255,255,255,0.15);box-shadow:0 6px 20px rgba(255,255,255,0.1)}
+.ci-phone{background:rgba(90,200,250,0.12);color:var(--blue)}
+.ci-phone:hover{background:rgba(90,200,250,0.22);box-shadow:0 6px 20px rgba(90,200,250,0.25)}
+
+/* ═══════════════════════════════════════════════
+   MAIN + SECTIONS
+═══════════════════════════════════════════════ */
+main{max-width:1080px;margin:0 auto;padding:0 36px 180px}
+.section{
+  opacity:0;transform:translateY(36px) scale(0.985);
+  transition:opacity 600ms var(--ease),transform 600ms var(--ease);
+  margin-bottom:80px;will-change:opacity,transform;
+}
+.section.vis{opacity:1;transform:none}
+.sec-label{
+  font-size:0.68rem;font-weight:600;letter-spacing:3px;
+  text-transform:uppercase;color:var(--gold);margin-bottom:10px;
+}
+.section>h2{font-family:var(--font-h);font-size:2rem;margin-bottom:28px;line-height:1.2}
+
+/* ═══════════════════════════════════════════════
+   CARDS
+═══════════════════════════════════════════════ */
+.card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:28px;
+  transition:transform 240ms var(--spring),
+             border-color 240ms var(--smooth),
+             box-shadow 240ms var(--smooth);
+  will-change:transform,box-shadow;
+}
+.card:hover{
+  transform:translateY(-4px);
+  border-color:var(--border-hi);
+  box-shadow:0 20px 56px rgba(0,0,0,0.5);
+}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+
+/* ═══════════════════════════════════════════════
+   INPUTS & BUTTONS
+═══════════════════════════════════════════════ */
+.row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:22px}
+.inp-g{display:flex;flex-direction:column;gap:6px}
+.inp-g label{font-size:0.77rem;color:var(--muted);font-weight:500}
+input[type=number],input[type=date]{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-sm);color:var(--text);
+  font-family:var(--font-b);font-size:0.95rem;
+  padding:9px 14px;width:150px;outline:none;
+  transition:border-color 200ms var(--ease),box-shadow 200ms var(--ease);
+}
+input:focus{
+  border-color:var(--gold);
+  box-shadow:0 0 0 3px rgba(245,166,35,0.14);
+}
+.btn{
+  background:var(--gold);color:#000;border:none;border-radius:100px;
+  padding:9px 26px;font-family:var(--font-b);
+  font-size:0.875rem;font-weight:700;cursor:pointer;
+  transition:transform 140ms var(--spring),background 180ms,box-shadow 180ms;
+  will-change:transform;
+}
+.btn:hover{background:#f7bd52;box-shadow:0 4px 18px rgba(245,166,35,0.32)}
+.btn:active{transform:scale(0.94)}
+
+/* ═══════════════════════════════════════════════
+   RESULT PANELS
+═══════════════════════════════════════════════ */
+.result{
+  background:rgba(245,166,35,0.04);
+  border:1px solid rgba(245,166,35,0.15);
+  border-radius:var(--r);padding:22px;
+  opacity:0;transform:scale(0.96) translateY(8px);
+  transition:opacity 380ms var(--spring),transform 380ms var(--spring);
+  will-change:opacity,transform;
+}
+.result.show{opacity:1;transform:none}
+.rrow{
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding:9px 0;border-bottom:1px solid var(--border);
+}
+.rrow:last-child{border-bottom:none}
+.rk{color:var(--muted);font-size:0.85rem}
+.rv{font-family:var(--font-h);font-size:1.35rem;color:var(--gold)}
+.rv small{font-family:var(--font-b);font-size:0.72rem;color:var(--muted)}
+
+/* ═══════════════════════════════════════════════
+   BROODER THERMOMETER CARDS
+═══════════════════════════════════════════════ */
+.thermo-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:18px 12px;text-align:center;cursor:default;
+  transition:transform 200ms var(--spring),border-color 200ms;
+  will-change:transform;
+}
+.thermo-card:hover{transform:translateY(-6px) scale(1.03);border-color:rgba(90,200,250,0.4)}
+.tl{font-size:0.66rem;color:var(--muted);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px}
+.t-bar-wrap{
+  height:76px;width:22px;background:rgba(255,255,255,0.05);
+  border-radius:20px;margin:0 auto 10px;position:relative;overflow:hidden;
+}
+.t-bar{
+  position:absolute;bottom:0;left:0;right:0;border-radius:20px;
+  background:linear-gradient(0deg,#007aff,#5ac8fa);
+  animation:thermo 900ms var(--ease) both;
+  will-change:height;
+}
+.t-c{font-family:var(--font-h);font-size:1.4rem;color:var(--blue)}
+.t-f{font-size:0.72rem;color:var(--muted);margin-top:2px}
+.t-tip{font-size:0.65rem;color:var(--muted);margin-top:8px;line-height:1.4}
+
+/* ═══════════════════════════════════════════════
+   VACCINE TABLE
+═══════════════════════════════════════════════ */
+.vtbl{width:100%;border-collapse:collapse}
+.vtbl th{
+  font-size:0.66rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);text-align:left;padding:10px 14px;
+  border-bottom:1px solid var(--border);
+}
+.vtbl td{padding:12px 14px;font-size:0.875rem;vertical-align:middle}
+.vtbl tbody tr{
+  border-bottom:1px solid var(--border);
+  opacity:0;transform:translateX(-18px);
+  transition:opacity 380ms var(--ease),transform 380ms var(--ease),background 150ms;
+}
+.vtbl tbody tr.rv-show{opacity:1;transform:none}
+.vtbl tbody tr:hover td{background:rgba(255,255,255,0.02)}
+.badge{
+  display:inline-block;padding:3px 10px;border-radius:100px;
+  font-size:0.68rem;font-weight:600;letter-spacing:0.5px;
+}
+.b-done{background:rgba(76,217,100,0.12);color:var(--green)}
+.b-upcoming{background:rgba(90,200,250,0.1);color:var(--blue)}
+.b-today{background:rgba(245,166,35,0.18);color:var(--gold);animation:pulse 2s infinite}
+.rem-btn{
+  background:rgba(90,200,250,0.08);border:1px solid rgba(90,200,250,0.2);
+  border-radius:7px;color:var(--blue);padding:4px 11px;font-size:0.75rem;cursor:pointer;
+  transition:background 140ms,transform 140ms var(--spring);
+  will-change:transform;
+}
+.rem-btn:hover{background:rgba(90,200,250,0.2);transform:scale(1.06)}
+.rem-btn:active{transform:scale(0.94)}
+.rem-btn.rem-set{
+  background:rgba(76,217,100,0.1);
+  border-color:rgba(76,217,100,0.3);
+  color:var(--green);
+  cursor:default;
+}
+.rem-btn.rem-set:hover{background:rgba(76,217,100,0.15);transform:none}
+
+/* ── Vaccine progress bar ── */
+.vax-progress-wrap{
+  margin-bottom:16px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:14px 16px;
+}
+.vax-progress-label{
+  display:flex;justify-content:space-between;
+  font-size:0.78rem;color:var(--muted);margin-bottom:8px;
+}
+.vax-progress-label strong{color:var(--text)}
+.vax-progress-bar{
+  height:8px;background:rgba(255,255,255,0.06);
+  border-radius:100px;overflow:hidden;
+}
+.vax-progress-fill{
+  height:100%;border-radius:100px;
+  background:linear-gradient(90deg,var(--gold),var(--green));
+  transition:width 800ms var(--ease);
+}
+
+/* ── Scroll to top ── */
+#scroll-top{
+  position:fixed;bottom:90px;right:20px;z-index:300;
+  width:44px;height:44px;border-radius:50%;
+  background:var(--card);border:1px solid var(--border-hi);
+  color:var(--text);font-size:1.1rem;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;opacity:0;pointer-events:none;
+  transition:opacity 300ms,transform 300ms var(--spring),background 200ms;
+  box-shadow:0 4px 16px rgba(0,0,0,0.4);
+}
+#scroll-top.visible{opacity:1;pointer-events:auto}
+#scroll-top:hover{
+  background:var(--gold);color:#000;
+  transform:translateY(-3px);
+}
+
+/* ── Today pulse ── */
+@keyframes todayPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(245,166,35,0.4)}
+  50%{box-shadow:0 0 0 8px rgba(245,166,35,0)}
+}
+.vax-card.status-today{
+  border-color:rgba(245,166,35,0.5) !important;
+  background:rgba(245,166,35,0.06) !important;
+  animation:todayPulse 2.5s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════
+   EGG COUNTDOWN
+═══════════════════════════════════════════════ */
+.egg-hero{text-align:center;padding:12px 0 20px}
+.egg-icon{
+  font-size:3.8rem;display:inline-block;
+  animation:eggWobble 3s ease-in-out infinite;
+  will-change:transform;
+}
+.egg-prog-wrap{
+  background:rgba(255,255,255,0.06);border-radius:100px;
+  height:10px;margin:18px 0;overflow:hidden;
+}
+.egg-prog{
+  height:100%;border-radius:100px;
+  background:linear-gradient(90deg,var(--gold),var(--green));
+  background-size:200%;
+  animation:gradShift 3s ease-in-out infinite;
+  transition:width 1.4s var(--ease);
+  will-change:width;
+}
+.egg-stats{display:flex;justify-content:space-around;margin-top:14px}
+.egg-stat-val{font-family:var(--font-h);font-size:2.4rem}
+.egg-stat-lbl{font-size:0.72rem;color:var(--muted)}
+.egg-stages{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}
+.egg-stage{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:12px;text-align:center;
+  font-size:0.78rem;color:var(--muted);line-height:1.5;
+}
+.egg-stage-day{font-family:var(--font-h);font-size:1rem;color:var(--gold);display:block;margin-bottom:4px}
+
+/* ═══════════════════════════════════════════════
+   NUTRITION CARDS
+═══════════════════════════════════════════════ */
+.nut-card{
+  border-radius:var(--r);padding:26px;border:1px solid var(--border);
+  transition:transform 240ms var(--spring),box-shadow 240ms var(--smooth);
+  will-change:transform;
+}
+.nut-card:hover{transform:translateY(-5px);box-shadow:0 24px 60px rgba(0,0,0,0.5)}
+.nut-icon{font-size:2.4rem;margin-bottom:12px}
+.nut-label{font-size:0.68rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+.nut-weeks{font-size:0.8rem;color:var(--muted);margin-bottom:14px}
+.nut-protein{font-family:var(--font-h);font-size:3rem;line-height:1;margin-bottom:4px}
+.nut-protein-lbl{font-size:0.78rem;color:var(--muted)}
+.nut-bar-bg{background:rgba(255,255,255,0.06);border-radius:100px;height:5px;margin:14px 0 10px;overflow:hidden}
+.nut-bar-fill{height:100%;border-radius:100px;animation:progressFill 1s var(--ease) 300ms both}
+.nut-calcium{font-size:0.8rem;color:var(--muted);margin-bottom:12px}
+.nut-purpose{font-size:0.82rem;line-height:1.55;margin-bottom:14px;color:var(--muted)}
+.nut-tips{list-style:none;display:flex;flex-direction:column;gap:6px}
+.nut-tips li{font-size:0.78rem;color:var(--muted);padding-left:14px;position:relative}
+.nut-tips li::before{content:"→";position:absolute;left:0;opacity:0.5}
+
+/* ═══════════════════════════════════════════════
+   WATER BARS
+═══════════════════════════════════════════════ */
+.w-bars{display:flex;gap:10px;align-items:flex-end;height:90px;margin-top:14px}
+.w-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px}
+.w-bar{
+  width:100%;border-radius:7px 7px 0 0;
+  background:linear-gradient(180deg,#5ac8fa,#007aff);
+  animation:barGrow 800ms var(--ease) both;
+  transition:height 700ms var(--ease);
+  min-height:4px;
+}
+.w-lbl{font-size:0.68rem;color:var(--muted);text-align:center;line-height:1.4}
+
+/* ═══════════════════════════════════════════════
+   ALERT STATUS PANEL
+═══════════════════════════════════════════════ */
+.alert-status{
+  display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;
+}
+.alert-dot{
+  display:flex;align-items:center;gap:6px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:100px;padding:5px 12px;font-size:0.78rem;
+}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.dot-on{background:var(--green);box-shadow:0 0 6px var(--green)}
+.dot-off{background:var(--red)}
+
+/* ═══════════════════════════════════════════════
+   ADMIN PANEL
+═══════════════════════════════════════════════ */
+.admin-stats-row{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:10px;margin-bottom:24px;
+}
+.admin-stat-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:14px;padding:16px;
+}
+.admin-stat-label{font-size:0.7rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px}
+.admin-stat-value{font-family:var(--font-h);font-size:1.8rem;font-weight:800}
+.admin-stat-value.gold{color:var(--gold)}
+.admin-stat-value.green{color:var(--green)}
+.admin-stat-value.blue{color:var(--blue)}
+
+.admin-sec-title{
+  font-family:var(--font-h);font-size:0.95rem;font-weight:700;
+  margin-bottom:12px;
+  display:flex;align-items:center;gap:8px;
+}
+.admin-sec-title::before{
+  content:'';width:5px;height:5px;border-radius:50%;
+  background:var(--gold);box-shadow:0 0 6px var(--gold);
+  display:inline-block;
+}
+
+.admin-add-form{
+  display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:14px;padding:16px;margin-bottom:14px;
+}
+.admin-btn-add{
+  background:var(--gold);color:#000;border:none;
+  border-radius:9px;padding:10px 18px;
+  font-family:var(--font-h);font-weight:700;font-size:0.85rem;
+  cursor:pointer;height:42px;white-space:nowrap;
+  transition:opacity 200ms,transform 200ms;
+}
+.admin-btn-add:hover{opacity:0.88;transform:translateY(-1px)}
+.admin-btn-add:disabled{opacity:0.4;cursor:not-allowed;transform:none}
+
+.admin-table-wrap{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:14px;overflow:hidden;margin-bottom:8px;
+}
+.admin-table{width:100%;border-collapse:collapse}
+.admin-table th{
+  background:rgba(255,255,255,0.03);
+  padding:9px 14px;text-align:left;
+  font-size:0.67rem;color:var(--muted);
+  letter-spacing:1.5px;text-transform:uppercase;
+  border-bottom:1px solid var(--border);
+}
+.admin-table td{
+  padding:12px 14px;
+  border-bottom:1px solid var(--border);
+  font-size:0.82rem;
+}
+.admin-table tr:last-child td{border-bottom:none}
+.admin-table tr:hover td{background:rgba(255,255,255,0.02)}
+.admin-btn-remove{
+  background:rgba(255,59,48,0.08);border:1px solid rgba(255,59,48,0.2);
+  color:var(--red);padding:3px 10px;border-radius:7px;
+  font-size:0.73rem;cursor:pointer;
+  transition:background 150ms;
+}
+.admin-btn-remove:hover{background:rgba(255,59,48,0.18)}
+.admin-btn-email-user{
+  background:rgba(90,200,250,0.08);border:1px solid rgba(90,200,250,0.2);
+  color:var(--blue);padding:3px 10px;border-radius:7px;
+  font-size:0.73rem;cursor:pointer;margin-right:6px;
+  transition:background 150ms;
+}
+.admin-btn-email-user:hover{background:rgba(90,200,250,0.18)}
+
+.admin-reminder-row{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:14px;margin-bottom:8px;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:12px;flex-wrap:wrap;
+}
+.admin-reminder-vaccine{font-family:var(--font-h);font-size:0.9rem;font-weight:700;margin-bottom:3px}
+.admin-reminder-meta{font-size:0.75rem;color:var(--muted)}
+.vax-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:16px;
+  transition:border-color 200ms,box-shadow 200ms;
+  opacity:0;transform:translateY(10px);
+  transition:opacity 350ms var(--ease),transform 350ms var(--ease),border-color 200ms,box-shadow 200ms;
+}
+.vax-card.rv-show{opacity:1;transform:none}
+.vax-card:hover{border-color:var(--border-hi);box-shadow:0 4px 20px rgba(0,0,0,0.3)}
+.vax-card.status-today{border-color:rgba(245,166,35,0.4);background:rgba(245,166,35,0.05)}
+.vax-card.status-done{opacity:0.55}
+
+.vax-card-top{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+  margin-bottom:10px;
+}
+.vax-card-name{
+  font-family:var(--font-h);
+  font-size:1.05rem;
+  color:var(--text);
+  line-height:1.3;
+  flex:1;
+}
+.vax-card-meta{
+  display:flex;flex-wrap:wrap;gap:8px;
+  font-size:0.78rem;color:var(--muted);
+  margin-bottom:8px;
+}
+.vax-card-meta span{
+  display:flex;align-items:center;gap:4px;
+}
+.vax-card-notes{
+  font-size:0.8rem;color:var(--muted);
+  line-height:1.5;margin-bottom:12px;
+  padding:8px 12px;
+  background:rgba(255,255,255,0.03);
+  border-radius:8px;
+  border-left:2px solid var(--border-hi);
+}
+.vax-card-bottom{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+}
+.vax-recurring-tag{
+  font-size:0.72rem;
+  color:var(--purple);
+  background:rgba(191,90,242,0.1);
+  border:1px solid rgba(191,90,242,0.2);
+  border-radius:100px;
+  padding:3px 10px;
+}
+
+/* ═══════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════ */
+#toast{
+  position:fixed;bottom:84px;right:28px;z-index:400;
+  padding:12px 22px;border-radius:100px;
+  font-weight:700;font-size:0.875rem;
+  color:#000;background:var(--green);
+  transform:translateY(18px);opacity:0;
+  transition:transform 380ms var(--spring),opacity 280ms var(--smooth);
+  pointer-events:none;will-change:transform,opacity;
+}
+#toast.show{transform:none;opacity:1}
+
+/* ═══════════════════════════════════════════════
+   NOTIFICATION REMINDER MODAL
+═══════════════════════════════════════════════ */
+#notif-modal{
+  display:none;position:fixed;inset:0;z-index:700;
+  background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);
+  align-items:center;justify-content:center;
+}
+#notif-modal.open{display:flex}
+.notif-box{
+  background:var(--card);border:1px solid var(--border-hi);
+  border-radius:var(--r);padding:32px;max-width:400px;width:90%;
+  animation:slideUp 400ms var(--spring) both;
+}
+.notif-box h3{font-family:var(--font-h);font-size:1.4rem;margin-bottom:10px}
+.notif-box p{color:var(--muted);font-size:0.88rem;line-height:1.6;margin-bottom:22px}
+.notif-box .notif-details{
+  background:var(--surface);border-radius:var(--r-sm);
+  padding:14px;margin-bottom:22px;font-size:0.82rem;line-height:1.7;
+}
+.notif-box .notif-details strong{color:var(--text)}
+.notif-actions{display:flex;gap:10px;justify-content:flex-end}
+.notif-actions button{
+  border:none;border-radius:100px;padding:9px 20px;
+  font-family:var(--font-b);font-weight:600;font-size:0.85rem;cursor:pointer;
+  transition:transform 140ms var(--spring);
+}
+.notif-actions button:active{transform:scale(0.93)}
+.btn-cancel{background:var(--surface);color:var(--muted)}
+.btn-confirm{background:var(--gold);color:#000}
+
+/* ═══════════════════════════════════════════════
+   SCROLLBAR
+═══════════════════════════════════════════════ */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+
+/* ═══════════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════════ */
+@media(max-width:768px){
+  nav{padding:0 16px}
+  .nav-pills{display:none}
+  .logo-hero-emoji{font-size:5rem}
+  .hero{padding:16px 18px 48px}
+  main{padding:0 14px 180px}
+  .g2,.g3,.g5{grid-template-columns:1fr}
+  .egg-stages{grid-template-columns:1fr 1fr}
+  .hero-stats{gap:18px}
+  .hero h1{font-size:2.4rem}
+  #toast{bottom:100px;right:16px;left:16px;text-align:center}
+  .card{padding:18px 14px}
+  .section{padding:0}
+  .rrow{flex-wrap:wrap;gap:4px}
+  table{font-size:0.8rem}
+}
+/* Landscape mobile */
+@media(max-width:900px) and (orientation:landscape){
+  nav{padding:0 16px}
+  .hero{padding:12px 20px 32px}
+  main{padding:0 20px 120px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:1fr 1fr 1fr}
+  .g5{grid-template-columns:repeat(3,1fr)}
+  #toast{bottom:80px;right:16px;left:auto}
+}
+
+/* ═══════════════════════════════════════════════
+   AUTH SCREEN
+   Tabs: Login / Sign Up
+   Methods: Email+Password, Google, Facebook
+═══════════════════════════════════════════════ */
+#auth-screen{
+  position:fixed;inset:0;z-index:9999;
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  padding:24px;
+  overflow-y:auto;
+  transition:opacity 600ms var(--ease), visibility 600ms;
+}
+#auth-screen.hidden{
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+}
+
+.auth-card{
+  width:100%;max-width:420px;
+  background:var(--card);
+  border:1px solid var(--border-hi);
+  border-radius:24px;
+  padding:36px 34px 32px;
+  box-shadow:0 40px 100px rgba(0,0,0,0.7);
+  animation:scaleIn 600ms var(--spring) both;
+  margin:auto;
+}
+
+/* Brand */
+.auth-brand{
+  display:flex;flex-direction:column;align-items:center;
+  margin-bottom:28px;gap:5px;
+}
+.auth-brand-emoji{
+  font-size:3rem;
+  filter:drop-shadow(0 8px 24px rgba(245,166,35,0.35));
+  animation:logoFloat 4s ease-in-out infinite;
+}
+.auth-brand-name{
+  font-family:var(--font-h);
+  font-size:1.7rem;
+  color:var(--gold);
+  letter-spacing:-0.5px;
+}
+.auth-brand-name em{ font-style:italic;color:var(--text);font-weight:300 }
+.auth-tagline{
+  font-size:0.72rem;color:var(--muted);
+  letter-spacing:2px;text-transform:uppercase;
+}
+
+/* Tab switcher */
+.auth-tabs{
+  display:flex;
+  background:var(--surface);
+  border-radius:100px;
+  padding:4px;
+  margin-bottom:24px;
+  gap:4px;
+}
+.auth-tab{
+  flex:1;padding:9px;border:none;border-radius:100px;
+  font-family:var(--font-b);font-size:0.85rem;font-weight:600;
+  cursor:pointer;
+  background:transparent;color:var(--muted);
+  transition:background 200ms,color 200ms,transform 150ms var(--spring);
+}
+.auth-tab.active{
+  background:var(--gold);color:#000;
+}
+.auth-tab:not(.active):hover{
+  background:rgba(255,255,255,0.06);color:var(--text);
+}
+
+/* Step panels */
+.auth-step{ display:none }
+.auth-step.active{ display:block;animation:fadeUp 380ms var(--ease) both }
+
+/* Fields */
+.auth-field{
+  display:flex;flex-direction:column;gap:6px;
+  margin-bottom:14px;
+}
+.auth-field label{
+  font-size:0.73rem;color:var(--muted);font-weight:600;
+  letter-spacing:0.5px;text-transform:uppercase;
+}
+.auth-input{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  color:var(--text);
+  font-family:var(--font-b);font-size:1rem;
+  padding:12px 16px;width:100%;outline:none;
+  transition:border-color 200ms var(--ease),box-shadow 200ms var(--ease);
+}
+.auth-input:focus{
+  border-color:var(--gold);
+  box-shadow:0 0 0 3px rgba(245,166,35,0.14);
+}
+.auth-input::placeholder{ color:var(--muted);opacity:0.5 }
+
+/* Password field with show/hide toggle */
+.auth-pw-wrap{ position:relative }
+.auth-pw-wrap .auth-input{ padding-right:44px }
+.auth-pw-toggle{
+  position:absolute;right:14px;top:50%;transform:translateY(-50%);
+  background:none;border:none;color:var(--muted);cursor:pointer;
+  font-size:1rem;padding:4px;line-height:1;
+  transition:color 150ms;
+}
+.auth-pw-toggle:hover{ color:var(--text) }
+
+/* Primary action button */
+.auth-btn{
+  width:100%;
+  background:var(--gold);color:#000;border:none;
+  border-radius:100px;padding:13px;
+  font-family:var(--font-b);font-size:0.95rem;font-weight:700;
+  cursor:pointer;margin-top:4px;
+  transition:transform 140ms var(--spring),background 180ms,box-shadow 180ms,opacity 200ms;
+  will-change:transform;position:relative;
+}
+.auth-btn:hover:not(:disabled){
+  background:#f7bd52;
+  box-shadow:0 6px 24px rgba(245,166,35,0.4);
+}
+.auth-btn:active:not(:disabled){ transform:scale(0.95) }
+.auth-btn:disabled{ opacity:0.45;cursor:not-allowed }
+.auth-btn .btn-spinner{
+  display:none;width:18px;height:18px;
+  border:2px solid rgba(0,0,0,0.25);border-top-color:#000;
+  border-radius:50%;animation:spin 600ms linear infinite;margin:0 auto;
+}
+.auth-btn.loading .btn-text{ display:none }
+.auth-btn.loading .btn-spinner{ display:block }
+@keyframes spin{ to{ transform:rotate(360deg) } }
+
+/* Divider */
+.auth-divider{
+  display:flex;align-items:center;gap:12px;
+  margin:18px 0;font-size:0.75rem;color:var(--muted);
+}
+.auth-divider::before,.auth-divider::after{
+  content:'';flex:1;height:1px;background:var(--border);
+}
+
+/* Social buttons */
+.social-btns{ display:flex;flex-direction:column;gap:10px }
+.social-btn{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
+  border:1px solid var(--border);border-radius:100px;
+  padding:12px;font-family:var(--font-b);font-size:0.9rem;font-weight:600;
+  cursor:pointer;background:var(--surface);color:var(--text);
+  transition:border-color 180ms,background 180ms,transform 140ms var(--spring),box-shadow 180ms;
+  will-change:transform;
+}
+.social-btn:hover{
+  border-color:var(--border-hi);
+  background:rgba(255,255,255,0.04);
+  transform:translateY(-1px);
+  box-shadow:0 4px 16px rgba(0,0,0,0.3);
+}
+.social-btn:active{ transform:scale(0.97) }
+.social-btn svg{ flex-shrink:0 }
+
+/* Google specific */
+.social-btn.google:hover{ border-color:rgba(66,133,244,0.4) }
+/* Facebook specific */
+.social-btn.facebook:hover{ border-color:rgba(24,119,242,0.4) }
+
+/* Error */
+.auth-error{
+  background:rgba(255,107,107,0.1);
+  border:1px solid rgba(255,107,107,0.3);
+  border-radius:10px;padding:10px 14px;
+  font-size:0.82rem;color:var(--red);
+  margin-bottom:14px;display:none;
+}
+.auth-error.show{ display:block;animation:fadeUp 300ms var(--ease) both }
+
+/* Success message */
+.auth-success{
+  background:rgba(76,217,100,0.1);
+  border:1px solid rgba(76,217,100,0.3);
+  border-radius:10px;padding:10px 14px;
+  font-size:0.82rem;color:var(--green);
+  margin-bottom:14px;display:none;
+}
+.auth-success.show{ display:block;animation:fadeUp 300ms var(--ease) both }
+
+/* Forgot password / switch links */
+.auth-link{
+  text-align:center;margin-top:16px;
+  font-size:0.8rem;color:var(--muted);
+}
+.auth-link button{
+  background:none;border:none;color:var(--gold);
+  font-size:0.8rem;cursor:pointer;
+  text-decoration:underline;padding:0;
+  font-family:var(--font-b);
+}
+
+/* ── Logged-in user chip in nav ── */
+.nav-user{
+  display:none;align-items:center;gap:8px;
+  background:rgba(245,166,35,0.08);
+  border:1px solid rgba(245,166,35,0.2);
+  border-radius:100px;padding:5px 12px 5px 8px;
+  font-size:0.78rem;cursor:pointer;transition:background 180ms;
+}
+.nav-user:hover{ background:rgba(245,166,35,0.14) }
+.nav-user.visible{ display:flex }
+.nav-user-avatar{
+  width:26px;height:26px;border-radius:50%;
+  background:var(--gold);
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.7rem;font-weight:700;color:#000;overflow:hidden;
+}
+.nav-user-avatar img{ width:100%;height:100%;object-fit:cover }
+.nav-user-name{ color:var(--text);font-weight:500 }
+.nav-user-signout{ color:var(--muted);font-size:0.72rem;margin-left:2px }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     AUTH SCREEN — shown before app, hidden after login
+═══════════════════════════════════════════════ -->
+<div id="auth-screen">
+  <div class="auth-card">
+
+    <!-- Brand -->
+    <div class="auth-brand">
+      <div class="auth-brand-emoji"><img src="logo1.png" style="width: 200px;height: 200px;object-fit: contain;border-radius:80px;"></div>
+      <div class="auth-tagline">Poultry Intelligence Platform</div>
+    </div>
+
+    <!-- Tab switcher: Log In / Sign Up -->
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login"  onclick="switchTab('login')">Log In</button>
+      <button class="auth-tab"        id="tab-signup" onclick="switchTab('signup')">Sign Up</button>
+    </div>
+
+    <!-- ── LOG IN panel ── -->
+    <div class="auth-step active" id="step-login">
+
+      <div class="auth-error"   id="login-error"></div>
+      <div class="auth-success" id="login-success"></div>
+
+      <div class="auth-field">
+        <label>Email Address</label>
+        <input class="auth-input" id="login-email" type="email"
+               placeholder="you@example.com" autocomplete="email"/>
+      </div>
+
+      <div class="auth-field">
+        <label>Password</label>
+        <div class="auth-pw-wrap">
+          <input class="auth-input" id="login-password" type="password"
+                 placeholder="••••••••" autocomplete="current-password"/>
+          <button class="auth-pw-toggle" onclick="togglePw('login-password',this)" type="button">👁</button>
+        </div>
+      </div>
+
+      <button class="auth-btn" id="btn-login" onclick="authEmailLogin()">
+        <span class="btn-text">Log In</span>
+        <div class="btn-spinner"></div>
+      </button>
+
+      <div class="auth-link">
+        <button onclick="authForgotPassword()">Forgot password?</button>
+      </div>
+
+      <div class="auth-divider">or continue with</div>
+
+      <div class="social-btns">
+        <button class="social-btn google" onclick="authGoogle()">
+          <!-- Google logo SVG -->
+          <svg width="18" height="18" viewBox="0 0 48 48">
+            <path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/>
+            <path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/>
+            <path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7z"/>
+            <path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/>
+          </svg>
+          Continue with Google
+        </button>
+
+        <button class="social-btn facebook" onclick="authFacebook()">
+          <!-- Facebook logo SVG -->
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="#1877F2">
+            <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.268h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/>
+          </svg>
+          Continue with Facebook
+        </button>
+      </div>
+
+    </div>
+
+    <!-- ── SIGN UP panel ── -->
+    <div class="auth-step" id="step-signup">
+
+      <div class="auth-error"   id="signup-error"></div>
+      <div class="auth-success" id="signup-success"></div>
+
+      <div class="auth-field">
+        <label>Full Name</label>
+        <input class="auth-input" id="signup-name" type="text"
+               placeholder="e.g. John Banda" autocomplete="name"/>
+      </div>
+
+      <div class="auth-field">
+        <label>Email Address</label>
+        <input class="auth-input" id="signup-email" type="email"
+               placeholder="you@example.com" autocomplete="email"/>
+      </div>
+
+      <div class="auth-field">
+        <label>Password</label>
+        <div class="auth-pw-wrap">
+          <input class="auth-input" id="signup-password" type="password"
+                 placeholder="Min. 6 characters" autocomplete="new-password"/>
+          <button class="auth-pw-toggle" onclick="togglePw('signup-password',this)" type="button">👁</button>
+        </div>
+      </div>
+
+      <div class="auth-field">
+        <label>Confirm Password</label>
+        <div class="auth-pw-wrap">
+          <input class="auth-input" id="signup-confirm" type="password"
+                 placeholder="Repeat password" autocomplete="new-password"/>
+          <button class="auth-pw-toggle" onclick="togglePw('signup-confirm',this)" type="button">👁</button>
+        </div>
+      </div>
+
+      <button class="auth-btn" id="btn-signup" onclick="authEmailSignup()">
+        <span class="btn-text">Create Account</span>
+        <div class="btn-spinner"></div>
+      </button>
+
+      <div class="auth-divider">or sign up with</div>
+
+      <div class="social-btns">
+        <button class="social-btn google" onclick="authGoogle()">
+          <svg width="18" height="18" viewBox="0 0 48 48">
+            <path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/>
+            <path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/>
+            <path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7z"/>
+            <path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7z"/>
+          </svg>
+          Continue with Google
+        </button>
+
+        <button class="social-btn facebook" onclick="authFacebook()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="#1877F2">
+            <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.268h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/>
+          </svg>
+          Continue with Facebook
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     OFFLINE INDICATOR
+═══════════════════════════════════════════════ -->
+<div id="offline-bar">⚡ You're offline — all features still work!</div>
+<button id="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top">↑</button>
+
+<!-- ═══════════════════════════════════════════════
+     NAV
+═══════════════════════════════════════════════ -->
+<nav id="nav">
+  <a class="nav-brand" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">
+    <span class="nav-logo-emoji"><img src="logo1.png" style="width: 70px;height: 70px;object-fit: contain;border-radius: 30px"></span>  
+  </a>
+  <div class="nav-pills">
+    <button class="nav-pill active" onclick="navClick(this,'#brooder')">🌡 Brooder</button>
+    <button class="nav-pill" onclick="navClick(this,'#vaccines')">💉 Vaccines</button>
+    <button class="nav-pill" onclick="navClick(this,'#feed')">🌾 Feed</button>
+    <button class="nav-pill" onclick="navClick(this,'#water')">💧 Water</button>
+    <button class="nav-pill" onclick="navClick(this,'#brooding')">🥚 Brooding</button>
+    <button class="nav-pill" onclick="navClick(this,'#nutrition')">🔬 Nutrition</button>
+    <button class="nav-pill" id="admin-nav-pill" style="display:none" onclick="navClick(this,'#admin-panel')">⚙️ Admin</button>
+  </div>
+
+  <!-- Signed-in user chip -->
+  <div class="nav-user" id="nav-user" onclick="authSignOut()" title="Sign out">
+    <div class="nav-user-avatar" id="nav-avatar">JB</div>
+    <span class="nav-user-name" id="nav-name">John Banda</span>
+    <span class="nav-user-signout">· Sign out</span>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════
+     LOGO HERO
+═══════════════════════════════════════════════ -->
+<div class="logo-hero">
+  <div class="logo-hero-emoji"><img src="logo1.png" style="width: 140px;height: 140px;object-fit: contain"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     HERO TEXT
+═══════════════════════════════════════════════ -->
+<div class="hero">
+  <div class="hero-tag">🐔 Poultry Intelligence Platform · v1.0 PWA</div>
+  <h1>
+    <span class="line1">Raise smarter,</span>
+    <span class="line2">healthier <em>flocks.</em></span>
+  </h1>
+  <p>Six precision tools for African smallholder farmers — brooder heat, vaccine timing, feed maths, water needs, egg countdown, and nutritional guidance. Works fully offline.</p>
+
+  <div class="hero-stats">
+    <div class="h-stat"><div class="h-stat-val">6</div><div class="h-stat-lbl">Modules</div></div>
+    <div class="h-stat"><div class="h-stat-val">21</div><div class="h-stat-lbl">Incubation days</div></div>
+    <div class="h-stat"><div class="h-stat-val">11</div><div class="h-stat-lbl">Vaccine points</div></div>
+    <div class="h-stat"><div class="h-stat-val">3</div><div class="h-stat-lbl">Feed phases</div></div>
+  </div>
+
+  <div class="contact-strip">
+    <a class="contact-icon ci-whatsapp" href="https://wa.me/265885159395" target="_blank" title="WhatsApp" aria-label="Contact via WhatsApp">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+    </a>
+    <a class="contact-icon ci-x" href="https://x.com/Zgolooo" target="_blank" title="X (Twitter)" aria-label="Contact on X">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.63 5.905-5.63Zm-1.161 17.52h1.833L7.084 4.126H5.117Z"/></svg>
+    </a>
+    <a class="contact-icon ci-phone" href="tel:+265885159395" title="Call us" aria-label="Call us">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.58 3.38 2 2 0 0 1 3.55 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.72a16 16 0 0 0 7.38 7.38l.88-.88a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 17.58v-.66Z"/></svg>
+    </a>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     MAIN CONTENT
+═══════════════════════════════════════════════ -->
+<main>
+
+<!-- ① BROODER TEMPERATURE ──────────────────────── -->
+<section class="section" id="brooder">
+  <div class="sec-label">Module 01</div>
+  <h2>🌡 Brooder Temperature Control</h2>
+  <div class="card">
+    <p style="color:var(--muted);font-size:0.88rem;margin-bottom:22px">
+      Reduce heat by <strong style="color:var(--text)">~3°C per week</strong> as chicks develop feathers.
+      Watch for huddling (too cold) or panting/wing-spreading (too hot).
+    </p>
+    <div class="g5" id="brooder-grid"></div>
+    <div style="margin-top:18px;padding:14px;background:rgba(90,200,250,0.05);border:1px solid rgba(90,200,250,0.15);border-radius:var(--r-sm);font-size:0.82rem;color:var(--muted)">
+      ⚡ <strong style="color:var(--text)">After Week 4:</strong> Wean off heat gradually over 2–3 days. Ensure night temps don't fall below 18°C.
+    </div>
+  </div>
+</section>
+
+<!-- ② VACCINE SCHEDULE ─────────────────────────── -->
+<section class="section" id="vaccines">
+  <div class="sec-label">Module 02</div>
+  <h2>💉 Vaccine Schedule & Reminders</h2>
+  <div class="card">
+    <div class="row">
+      <div class="inp-g">
+        <label>Chick Hatch / Arrival Date</label>
+        <input type="date" id="hatch-date"/>
+      </div>
+      <button class="btn" onclick="loadVaccines()">Generate Schedule</button>
+    </div>
+    <div class="alert-status" id="alert-status">
+      <div class="alert-dot">
+        <span class="dot dot-on"></span>
+        Email Reminders Active
+      </div>
+    </div>
+    <div id="vax-progress-wrap" class="vax-progress-wrap" style="display:none">
+      <div class="vax-progress-label">
+        <span>Vaccination Progress</span>
+        <strong id="vax-progress-text">0 of 10 done</strong>
+      </div>
+      <div class="vax-progress-bar">
+        <div class="vax-progress-fill" id="vax-progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+    <div id="vax-cards" style="display:flex;flex-direction:column;gap:12px;margin-top:16px"></div>
+  </div>
+</section>
+
+<!-- ③ FEED CALCULATOR ──────────────────────────── -->
+<section class="section" id="feed">
+  <div class="sec-label">Module 03</div>
+  <h2>🌾 Feed Intake Calculator</h2>
+  <div class="g2">
+    <div class="card">
+      <h3 style="font-family:var(--font-h);margin-bottom:18px">Daily Requirement</h3>
+      <div class="row">
+        <div class="inp-g">
+          <label>Number of Birds</label>
+          <input type="number" id="f-birds" value="20" min="1"/>
+        </div>
+        <div class="inp-g">
+          <label>Current Week (age)</label>
+          <input type="number" id="f-week" value="1" min="1" max="80"/>
+        </div>
+      </div>
+      <button class="btn" onclick="calcFeed()">Calculate</button>
+      <p style="margin-top:14px;font-size:0.78rem;color:var(--muted);line-height:1.55">
+        Example: 20 hens × 130g = <strong style="color:var(--text)">2.6 kg/day</strong> at lay stage.
+      </p>
+    </div>
+    <div class="result" id="feed-result">
+      <div class="rrow"><span class="rk">Growth Phase</span><span class="rv" id="r-phase">—</span></div>
+      <div class="rrow"><span class="rk">Feed per Bird / Day</span><span class="rv" id="r-gpb">—</span></div>
+      <div class="rrow"><span class="rk">Total Flock Feed / Day</span><span class="rv" id="r-total">—</span></div>
+      <div class="rrow"><span class="rk">Protein Range</span><span class="rv" id="r-protein">—</span></div>
+      <div class="rrow"><span class="rk">50 kg Bag Lasts</span><span class="rv" id="r-bag">—</span></div>
+      <p style="margin-top:12px;font-size:0.78rem;color:var(--muted)" id="r-note"></p>
+    </div>
+  </div>
+
+  <div class="g3" style="margin-top:18px">
+    <div class="card" style="border-left:3px solid var(--gold)">
+      <div class="sec-label" style="color:var(--gold)">🐣 Starter · Week 1–6/8</div>
+      <div style="font-family:var(--font-h);font-size:2.4rem;color:var(--gold)">25g</div>
+      <div style="color:var(--muted);font-size:0.82rem;margin-top:4px">per bird / day</div>
+      <div style="margin-top:10px;font-size:0.78rem;color:var(--muted)">High protein chick starter<br><strong style="color:var(--text)">20–22%</strong> protein</div>
+    </div>
+    <div class="card" style="border-left:3px solid var(--green)">
+      <div class="sec-label" style="color:var(--green)">🐓 Grower · Week 7–18</div>
+      <div style="font-family:var(--font-h);font-size:2.4rem;color:var(--green)">80g</div>
+      <div style="color:var(--muted);font-size:0.82rem;margin-top:4px">per bird / day</div>
+      <div style="margin-top:10px;font-size:0.78rem;color:var(--muted)">Grower mash (up to 18 weeks)<br><strong style="color:var(--text)">16–17%</strong> protein</div>
+    </div>
+    <div class="card" style="border-left:3px solid var(--blue)">
+      <div class="sec-label" style="color:var(--blue)">🥚 Layer · Week 18+</div>
+      <div style="font-family:var(--font-h);font-size:2.4rem;color:var(--blue)">130g</div>
+      <div style="color:var(--muted);font-size:0.82rem;margin-top:4px">per bird / day</div>
+      <div style="margin-top:10px;font-size:0.78rem;color:var(--muted)">Layer mash + extra Ca²⁺<br><strong style="color:var(--text)">15–17%</strong> protein</div>
+    </div>
+  </div>
+</section>
+
+<!-- ④ WATER INTAKE ──────────────────────────────── -->
+<section class="section" id="water">
+  <div class="sec-label">Module 04</div>
+  <h2>💧 Water Intake Per Day</h2>
+  <div class="g2">
+    <div class="card">
+      <h3 style="font-family:var(--font-h);margin-bottom:6px">Daily Water Needs</h3>
+      <p style="color:var(--muted);font-size:0.82rem;margin-bottom:18px">
+        Water ≈ 2× feed intake in mL. Increase by 20% in hot weather.
+      </p>
+      <div class="row">
+        <div class="inp-g"><label>Birds</label><input type="number" id="w-birds" value="20" min="1"/></div>
+        <div class="inp-g"><label>Week</label><input type="number" id="w-week" value="1" min="1" max="80"/></div>
+      </div>
+      <button class="btn" onclick="calcWater()">Calculate</button>
+      <div class="result" style="margin-top:18px" id="water-result">
+        <div class="rrow"><span class="rk">Water per Bird</span><span class="rv" id="w-per-bird">—</span></div>
+        <div class="rrow"><span class="rk">Total Flock Water</span><span class="rv" id="w-total">—</span></div>
+        <div class="rrow"><span class="rk">Hot-day Total (+20%)</span><span class="rv" id="w-hot">—</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="font-family:var(--font-h);margin-bottom:14px">Water by Phase</h3>
+      <div class="w-bars">
+        <div class="w-bar-wrap">
+          <div class="w-bar" style="height:19%"></div>
+          <div class="w-lbl">Starter<br><strong style="color:var(--blue)">50mL</strong></div>
+        </div>
+        <div class="w-bar-wrap">
+          <div class="w-bar" style="height:62%;animation-delay:100ms"></div>
+          <div class="w-lbl">Grower<br><strong style="color:var(--blue)">160mL</strong></div>
+        </div>
+        <div class="w-bar-wrap">
+          <div class="w-bar" style="height:100%;animation-delay:200ms"></div>
+          <div class="w-lbl">Layer<br><strong style="color:var(--blue)">260mL</strong></div>
+        </div>
+      </div>
+      <p style="font-size:0.78rem;color:var(--muted);margin-top:16px;line-height:1.6">
+        💡 Dehydration reduces egg production up to 30%. Use nipple drinkers for cleaner water. Check morning and afternoon.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ⑤ EGG INCUBATION COUNTDOWN ───────────────────── -->
+<section class="section" id="brooding">
+  <div class="sec-label">Module 05</div>
+  <h2>🥚 Brooding Hen — Egg Countdown</h2>
+  <div class="g2">
+    <div class="card">
+      <h3 style="font-family:var(--font-h);margin-bottom:12px">Set Sitting Date</h3>
+      <p style="color:var(--muted);font-size:0.85rem;margin-bottom:18px;line-height:1.6">
+        Standard incubation = <strong style="color:var(--text)">21 days</strong>.
+        Enter when your hen started sitting (or eggs were set in the incubator).
+      </p>
+      <div class="row">
+        <div class="inp-g">
+          <label>Hen Started Sitting</label>
+          <input type="date" id="sit-date"/>
+        </div>
+      </div>
+      <button class="btn" onclick="calcBrooding()">Start Countdown</button>
+      <div style="margin-top:16px;padding:14px;background:rgba(245,166,35,0.05);border:1px solid rgba(245,166,35,0.15);border-radius:var(--r-sm);font-size:0.8rem;color:var(--muted);line-height:1.6">
+        🌡 Keep nest at <strong style="color:var(--text)">37.5–38°C</strong>.<br>
+        🕯 Candle eggs at <strong style="color:var(--text)">Day 7 & 14</strong> — remove clear (infertile) eggs.<br>
+        🚫 Do not disturb hen during hatching.
+      </div>
+    </div>
+    <div class="card" id="brooding-panel" style="opacity:0.25;transition:opacity 500ms var(--ease)">
+      <div class="egg-hero">
+        <div class="egg-icon">🥚</div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-top:6px">Expected Hatch Date</div>
+        <div style="font-family:var(--font-h);font-size:1.7rem;margin-top:3px" id="b-hatch-date">—</div>
+      </div>
+      <div class="egg-prog-wrap">
+        <div class="egg-prog" id="b-prog" style="width:0%"></div>
+      </div>
+      <div class="egg-stats">
+        <div style="text-align:center">
+          <div class="egg-stat-val" id="b-elapsed" style="color:var(--green)">0</div>
+          <div class="egg-stat-lbl">Days elapsed</div>
+        </div>
+        <div style="text-align:center">
+          <div class="egg-stat-val" id="b-remain" style="color:var(--gold)">21</div>
+          <div class="egg-stat-lbl">Days remaining</div>
+        </div>
+        <div style="text-align:center">
+          <div class="egg-stat-val" id="b-pct" style="color:var(--blue)">0%</div>
+          <div class="egg-stat-lbl">Complete</div>
+        </div>
+      </div>
+      <div class="egg-stages">
+        <div class="egg-stage"><span class="egg-stage-day">Day 1–7</span>Cell division; fertilisation visible at candling</div>
+        <div class="egg-stage"><span class="egg-stage-day">Day 8–14</span>Organ formation; veins clearly visible</div>
+        <div class="egg-stage"><span class="egg-stage-day">Day 15–21</span>Chick fills egg; pip then hatch</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ⑥ NUTRITIONAL VALUE GUIDE ──────────────────── -->
+<section class="section" id="nutrition">
+  <div class="sec-label">Module 06</div>
+  <h2>🔬 Feed Nutritional Value Guide</h2>
+  <p style="color:var(--muted);font-size:0.9rem;margin-bottom:24px;max-width:640px;line-height:1.7">
+    Feed is <strong style="color:var(--text)">the biggest cost and the key to health.</strong>
+    Use commercial feeds matched exactly to age and purpose.
+  </p>
+  <div class="g3" id="nut-cards"></div>
+
+  <div class="card" style="margin-top:18px;border-color:rgba(191,90,242,0.25)">
+    <h3 style="font-family:var(--font-h);margin-bottom:16px;color:var(--purple)">💰 Cost & Management Tips</h3>
+    <div class="g3">
+      <div>
+        <div style="font-size:0.68rem;color:var(--purple);font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-bottom:7px">Buy in Bulk</div>
+        <p style="font-size:0.82rem;color:var(--muted);line-height:1.6">Purchase 50–100 kg lots. Store in sealed containers away from moisture and rodents.</p>
+      </div>
+      <div>
+        <div style="font-size:0.68rem;color:var(--purple);font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-bottom:7px">Transition Gradually</div>
+        <p style="font-size:0.82rem;color:var(--muted);line-height:1.6">80/20 → 60/40 → 50/50 → 20/80 → 100% new feed over 5 days. Prevents digestive upset and feed rejection.</p>
+      </div>
+      <div>
+        <div style="font-size:0.68rem;color:var(--purple);font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-bottom:7px">Calcium for Layers</div>
+        <p style="font-size:0.82rem;color:var(--muted);line-height:1.6">Offer crushed oyster shell or limestone grit free-choice from Week 18. Thin shells = calcium deficiency.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ⑦ ADMIN PANEL ─────────────────────────────── -->
+<section class="section" id="admin-panel" style="display:none">
+  <div class="sec-label">Admin</div>
+  <h2>⚙️ Admin Panel</h2>
+
+  <!-- Stats -->
+  <div class="admin-stats-row" id="admin-stats-row">
+    <div class="admin-stat-card">
+      <div class="admin-stat-label">Authorised Users</div>
+      <div class="admin-stat-value gold" id="as-users">—</div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="admin-stat-label">Registered Accounts</div>
+      <div class="admin-stat-value green" id="as-accounts">—</div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="admin-stat-label">Recurring Reminders</div>
+      <div class="admin-stat-value blue" id="as-reminders">—</div>
+    </div>
+  </div>
+
+  <!-- Add User -->
+  <div class="admin-sec-title">👥 Allowed Users</div>
+  <div class="admin-add-form">
+    <div class="inp-g" style="flex:1">
+      <label>Email Address</label>
+      <input type="email" id="au-email" placeholder="user@example.com" onkeydown="if(event.key==='Enter')adminAddUser()"/>
+    </div>
+    <div class="inp-g" style="flex:1;max-width:200px">
+      <label>Name (optional)</label>
+      <input type="text" id="au-name" placeholder="Full name"/>
+    </div>
+    <button class="admin-btn-add" onclick="adminAddUser()">+ Add</button>
+  </div>
+
+  <!-- Users Table -->
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr><th>Email</th><th>Name</th><th>Added</th><th>Actions</th></tr>
+      </thead>
+      <tbody id="admin-users-tbody">
+        <tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Recurring Reminders -->
+  <div class="admin-sec-title" style="margin-top:28px">🔁 Recurring Reminders</div>
+  <div id="admin-reminders-list">
+    <div style="color:var(--muted);font-size:0.82rem;padding:16px 0">Loading...</div>
+  </div>
+
+</section>
+
+</main>
+
+<!-- Toast notification -->
+<div id="toast"></div>
+
+<!-- Notification reminder modal -->
+<div id="notif-modal">
+  <div class="notif-box">
+    <h3>🔔 Set Vaccine Reminder</h3>
+    <p>We'll send a browser notification on the day this vaccine is due.</p>
+    <div class="notif-details" id="notif-details"></div>
+    <div class="notif-actions">
+      <button class="btn-cancel" onclick="closeNotifModal()">Cancel</button>
+      <button class="btn-confirm" onclick="confirmReminder()">Set Reminder</button>
+    </div>
+  </div>
+</div>
+
+<!-- PWA Install Banner -->
+<div id="install-banner">
+  <div class="install-icon">🐔</div>
+  <div class="install-text">
+    <strong>Add Nkhuku to your home screen</strong>
+    <span>Works fully offline — no internet needed after install</span>
+  </div>
+  <button id="install-btn" onclick="installPWA()">Install App</button>
+  <button id="dismiss-btn" onclick="dismissInstall()" aria-label="Dismiss">✕</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     JAVASCRIPT — ALL BACKEND LOGIC PORTED TO JS
+     No server required. Works fully offline.
+═══════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+// ══════════════════════════════════════════════════
+// DATA (ported from nkhuku_server.py)
+// ══════════════════════════════════════════════════
+
+const BROODER_TEMPS = [
+  {label:'Day 1–3', celsius:35, fahrenheit:95,  tip:'Chicks just hatched — keep very warm. No drafts.'},
+  {label:'Day 4–7', celsius:33, fahrenheit:91,  tip:'Watch for huddling (too cold) or panting/wing-spreading (too hot).'},
+  {label:'Week 2',  celsius:30, fahrenheit:86,  tip:'Drop ~3°C each week as feathers develop.'},
+  {label:'Week 3',  celsius:27, fahrenheit:81,  tip:'Chicks becoming more active and exploratory.'},
+  {label:'Week 4',  celsius:24, fahrenheit:75,  tip:'Almost fully feathered. Begin weaning off supplemental heat.'},
+];
+
+const FEED_PHASES = {
+  starter: {
+    label:'Starter', weeks:'Week 1 – 6/8', protein_min:20, protein_max:22,
+    grams_per_bird:25, calcium:'Normal (~1%)',
+    purpose:'Rapid chick growth & immune development',
+    color:'#f5a623', icon:'🐣',
+    tips:[
+      'Crumble or mash form — easier for young chicks to eat',
+      'Keep feeders full at all times (ad libitum feeding)',
+      'High protein supports feather growth and muscle development',
+    ],
+  },
+  grower: {
+    label:'Grower', weeks:'Week 7 – 18', protein_min:16, protein_max:17,
+    grams_per_bird:80, calcium:'Normal (~1%)',
+    purpose:'Skeletal development & controlled weight gain',
+    color:'#4cd964', icon:'🐓',
+    tips:[
+      'Transition gradually over 5 days — mix old + new feed',
+      'Avoid excess protein at this stage — risks kidney damage',
+      'Pellet or mash form both work well',
+    ],
+  },
+  layer: {
+    label:'Layer', weeks:'Week 18 onwards', protein_min:15, protein_max:17,
+    grams_per_bird:130, calcium:'High (3.5–4%) for strong eggshells',
+    purpose:'Egg production, shell quality & hen health',
+    color:'#5ac8fa', icon:'🥚',
+    tips:[
+      'Extra calcium is critical — deficiency causes thin/soft shells',
+      'Offer crushed oyster shell as free-choice supplement',
+      '130g/hen/day is the standard — adjust for breed & hot climate',
+    ],
+  },
+};
+
+const VACCINE_SCHEDULE = [
+  {day:1,   name:"Marek's Disease",                    method:'Subcutaneous injection', notes:'Given at hatchery; provides lifelong protection', recurring:null},
+  {day:7,   name:'Newcastle Disease (Hitchner/Lasota)', method:'Eye drop / drinking water', notes:'La Sota strain; essential first dose', recurring:null},
+  {day:14,  name:'Gumboro (IBD)',                       method:'Drinking water',        notes:'Intermediate strain; protects the bursa of Fabricius', recurring:null},
+  {day:21,  name:'Newcastle Disease (Lasota/I2)',       method:'Eye drop',              notes:'Booster dose — do not skip', recurring:null},
+  {day:28,  name:'Gumboro Booster',                     method:'Drinking water',        notes:'Strengthens bursal immunity', recurring:null},
+  {day:42,  name:'Fowl Pox / Tatu Moja',               method:'Wing-web stab',         notes:'Essential in warm/tropical climates. Repeat every 4 months', recurring:120},
+  {day:49,  name:'Deworm',                            method:'Drinking water / oral', notes:'Broad-spectrum deworm treatment. Repeat every 4 months', recurring:120},
+  {day:56,  name:'Newcastle Disease (Lasota/I2)',       method:'Eye drop / drinking water', notes:'8-week booster dose', recurring:null},
+  {day:63,  name:'Fowl Typhoid',                        method:'Injection',             notes:'Prevents systemic Salmonella infection', recurring:null},
+  {day:126, name:'Egg Drop Syndrome (EDS-76)',          method:'Injection',             notes:'Prevents sudden drop in egg production. Give before lay starts at 18 weeks', recurring:null},
+];
+
+const WATER_MULTIPLIER = 2.0;
+const BROODING_DAYS    = 21;
+
+// ══════════════════════════════════════════════════
+// DATE HELPERS
+// ══════════════════════════════════════════════════
+
+function toDateOnly(d) {
+  // Strip time — compare dates only
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function daysDiff(a, b) {
+  // Returns b - a in whole days
+  return Math.round((toDateOnly(b) - toDateOnly(a)) / 86400000);
+}
+
+function addDays(date, n) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+function fmtDate(d) {
+  return d.toISOString().split('T')[0];
+}
+
+function todayISO() {
+  return fmtDate(new Date());
+}
+
+// ══════════════════════════════════════════════════
+// NAV + SCROLL
+// ══════════════════════════════════════════════════
+
+window.addEventListener('scroll', () => {
+  document.getElementById('nav').classList.toggle('scrolled', scrollY > 60);
+}, { passive: true });
+
+function navClick(btn, id) {
+  document.querySelectorAll('.nav-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelector(id).scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Scroll reveal
+const sObs = new IntersectionObserver(
+  es => es.forEach(e => { if (e.isIntersecting) e.target.classList.add('vis'); }),
+  { threshold: 0.08 }
+);
+document.querySelectorAll('.section').forEach(s => sObs.observe(s));
+
+// ══════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════
+
+function toast(msg, bg = 'var(--green)') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = bg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ══════════════════════════════════════════════════
+// ① BROODER (pure JS — no API needed)
+// ══════════════════════════════════════════════════
+
+function loadBrooder() {
+  const grid = document.getElementById('brooder-grid');
+  const max  = 35;
+  BROODER_TEMPS.forEach((d, i) => {
+    const pct = Math.round((d.celsius / max) * 100);
+    const el  = document.createElement('div');
+    el.className = 'thermo-card';
+    el.innerHTML = `
+      <div class="tl">${d.label}</div>
+      <div class="t-bar-wrap">
+        <div class="t-bar" style="height:${pct}%;animation-delay:${500 + i * 90}ms"></div>
+      </div>
+      <div class="t-c">${d.celsius}°C</div>
+      <div class="t-f">${d.fahrenheit}°F</div>
+      <div class="t-tip">${d.tip}</div>`;
+    grid.appendChild(el);
+  });
+}
+
+// ══════════════════════════════════════════════════
+// ② VACCINES (pure JS)
+// ══════════════════════════════════════════════════
+
+function loadVaccines() {
+  const hatchStr  = document.getElementById('hatch-date').value;
+  const hatch     = hatchStr ? new Date(hatchStr + 'T00:00:00') : new Date();
+  const today     = new Date();
+  const container = document.getElementById('vax-cards');
+  container.innerHTML = '';
+
+  let doneCount = 0;
+  const total   = VACCINE_SCHEDULE.length;
+  const reminders = JSON.parse(localStorage.getItem('nkhuku_reminders') || '[]');
+
+  // Save hatchDate to Firestore whenever schedule is loaded with a real date
+  if (hatchStr) saveHatchDateToFirestore(hatchStr);
+
+  VACCINE_SCHEDULE.forEach((v, i) => {
+    const due    = addDays(hatch, v.day);
+    const diff   = daysDiff(today, due);
+    const info   = diff === 0 ? 'Today!' : diff > 0 ? `in ${diff}d` : `${Math.abs(diff)}d ago`;
+    const status = diff > 0 ? 'upcoming' : diff === 0 ? 'today' : 'done';
+    const dueFmt = fmtDate(due);
+    const bCls   = status === 'done' ? 'b-done' : status === 'today' ? 'b-today' : 'b-upcoming';
+    const hasReminder = reminders.find(r => r.vaccine === v.name && r.day === v.day);
+
+    if (status === 'done') doneCount++;
+
+    const card = document.createElement('div');
+    card.className = `vax-card status-${status}`;
+
+    card.innerHTML = `
+      <div class="vax-card-top">
+        <div class="vax-card-name">${v.name}</div>
+        <span class="badge ${bCls}">${status.toUpperCase()}</span>
+      </div>
+      <div class="vax-card-meta">
+        <span>📅 Day ${v.day}</span>
+        <span>💉 ${v.method}</span>
+        <span>🗓 Due: <strong style="color:var(--text)">${dueFmt}</strong> <em style="color:var(--muted)">(${info})</em></span>
+      </div>
+      <div class="vax-card-notes">📝 ${v.notes}</div>
+      <div class="vax-card-bottom">
+        ${v.recurring ? `<span class="vax-recurring-tag">🔁 Repeats every ${v.recurring} days</span>` : '<span></span>'}
+        ${status !== 'done'
+          ? `<button class="rem-btn${hasReminder ? ' rem-set' : ''}"
+               onclick="openReminder('${v.name}','${dueFmt}','${v.method}','${v.notes.replace(/'/g,"\\'").replace(/"/g,'&quot;')}',${v.day},${v.recurring || 0})">
+               ${hasReminder ? '✅ Set' : '🔔 Alert'}
+             </button>`
+          : '<span style="color:var(--muted);font-size:0.78rem">✓ Done</span>'}
+      </div>`;
+
+    container.appendChild(card);
+    setTimeout(() => card.classList.add('rv-show'), 80 + i * 60);
+  });
+
+  // ── Progress bar ──────────────────────────────
+  const pct  = Math.round((doneCount / total) * 100);
+  const wrap = document.getElementById('vax-progress-wrap');
+  if (wrap) {
+    wrap.style.display = 'block';
+    setTimeout(() => {
+      document.getElementById('vax-progress-fill').style.width = pct + '%';
+      document.getElementById('vax-progress-text').textContent =
+        doneCount === total ? '🎉 All vaccines complete!' : `${doneCount} of ${total} done`;
+    }, 200);
+  }
+}
+
+// ══════════════════════════════════════════════════
+// EMAIL REMINDER SYSTEM — powered by EmailJS
+// Sends reminders: 3 days before, 1 day before, on the day
+// ══════════════════════════════════════════════════
+
+const EMAILJS_SERVICE_ID  = 'service_jidd5dr';
+const EMAILJS_TEMPLATE_ID = 'template_zvf4pe5';
+
+let _pendingReminder = null;
+
+// ── Get logged-in user's email from Firebase ──────
+async function getLoggedInUserEmail() {
+  try {
+    const { auth } = await getFirebase();
+    const user = auth.currentUser;
+    if (user && user.email) return { email: user.email, name: user.displayName || 'Farmer' };
+  } catch(_) {}
+  return null;
+}
+
+// ── Open the reminder confirmation modal ──────────
+function openReminder(vaccine, date, method, notes, day, recurringDays) {
+  _pendingReminder = { vaccine, date, method, notes, day, recurringDays };
+  document.getElementById('notif-details').innerHTML =
+    `<strong>${vaccine}</strong><br>
+     📅 Due: <strong>${date}</strong><br>
+     💉 Method: ${method}<br>
+     📝 ${notes}
+     ${recurringDays ? `<br>🔁 <em>Repeats every ${recurringDays} days</em>` : ''}`;
+  document.getElementById('notif-modal').classList.add('open');
+}
+
+function closeNotifModal() {
+  document.getElementById('notif-modal').classList.remove('open');
+  _pendingReminder = null;
+}
+
+// ── Send a single reminder email via EmailJS ──────
+async function sendReminderEmail({ to_email, to_name, vaccine_name, vaccine_method, due_date, timing }) {
+  return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+    to_email,
+    to_name,
+    vaccine_name,
+    vaccine_method,
+    due_date,
+    timing,
+  });
+}
+
+// ── Confirm reminder — send emails + save recurring to Firestore ──
+async function confirmReminder() {
+  if (!_pendingReminder) return;
+  const { vaccine, date, method, notes, day, recurringDays } = _pendingReminder;
+  closeNotifModal();
+
+  const user = await getLoggedInUserEmail();
+  if (!user) {
+    toast('⚠ Please log in first to set reminders', 'var(--red)');
+    return;
+  }
+
+  const dueDate = new Date(date + 'T07:00:00');
+  const today   = new Date();
+  today.setHours(0,0,0,0);
+  const diff = Math.round((dueDate - today) / (1000 * 60 * 60 * 24));
+
+  if (diff < 0) {
+    toast(`⚠ ${vaccine} was due ${Math.abs(diff)} day(s) ago`, 'var(--red)');
+    return;
+  }
+
+  toast('📧 Scheduling your email reminders...', 'var(--blue)');
+
+  const emailsSent = [];
+  const errors     = [];
+
+  // ── 1. Confirmation email now ──────────────────
+  if (diff >= 0) {
+    try {
+      await sendReminderEmail({
+        to_email:       user.email,
+        to_name:        user.name,
+        vaccine_name:   vaccine,
+        vaccine_method: method,
+        due_date:       date,
+        timing:         diff === 0 ? '⚠ Due TODAY' : `Due in ${diff} day(s)`,
+      });
+      emailsSent.push('confirmation');
+    } catch(e) { errors.push(e.text || e.message || 'EmailJS error'); console.error('EmailJS:', e); }
+  }
+
+  // ── 2. 1 day before ───────────────────────────
+  if (diff >= 1) {
+    const d1 = new Date(dueDate); d1.setDate(d1.getDate() - 1);
+    const ms1 = d1 - new Date();
+    if (ms1 > 0) {
+      setTimeout(async () => {
+        try { await sendReminderEmail({ to_email:user.email, to_name:user.name, vaccine_name:vaccine, vaccine_method:method, due_date:date, timing:'⏰ Due TOMORROW' }); }
+        catch(e) { console.error('1-day reminder failed:', e); }
+      }, ms1);
+      emailsSent.push('1 day before');
+    }
+  }
+
+  // ── 3. 3 days before ──────────────────────────
+  if (diff >= 3) {
+    const d3 = new Date(dueDate); d3.setDate(d3.getDate() - 3);
+    const ms3 = d3 - new Date();
+    if (ms3 > 0) {
+      setTimeout(async () => {
+        try { await sendReminderEmail({ to_email:user.email, to_name:user.name, vaccine_name:vaccine, vaccine_method:method, due_date:date, timing:'📅 Due in 3 days' }); }
+        catch(e) { console.error('3-day reminder failed:', e); }
+      }, ms3);
+      emailsSent.push('3 days before');
+    }
+  }
+
+  // ── 4. Save to localStorage ───────────────────
+  const reminders = JSON.parse(localStorage.getItem('nkhuku_reminders') || '[]');
+  if (!reminders.find(r => r.vaccine === vaccine && r.day === day)) {
+    reminders.push({ vaccine, date, method, day, email: user.email });
+    localStorage.setItem('nkhuku_reminders', JSON.stringify(reminders));
+  }
+
+  // ── 5. Save recurring reminders to Firestore ──
+  if (recurringDays && recurringDays > 0) {
+    try {
+      const { db, doc, setDoc } = await getFirebase();
+      const nextDue = new Date(dueDate);
+      nextDue.setDate(nextDue.getDate() + recurringDays);
+      await setDoc(doc(db, 'recurring_reminders', `${user.email}_day${day}`), {
+        vaccine,
+        method,
+        notes,
+        recurringDays,
+        nextDueDate:  fmtDate(nextDue),
+        userEmail:    user.email,
+        userName:     user.name,
+        createdAt:    new Date().toISOString(),
+      });
+    } catch(e) { console.error('Firestore recurring save failed:', e); }
+  }
+
+  // ── 6. Show result ────────────────────────────
+  if (errors.length === 0) {
+    toast(`✅ Reminder set! Email sent → ${user.email}`, 'var(--green)');
+    loadVaccines(); // Refresh to show ✅ Set button state
+  } else {
+    toast(`⚠ Reminder failed: ${errors[0]}`, 'var(--red)');
+  }
+}
+
+function checkStoredReminders() {
+  // No-op — reminders are now handled by EmailJS
+  // localStorage entries still track which vaccines have reminders set
+}
+
+// Close modal on background click
+document.getElementById('notif-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeNotifModal();
+});
+
+// ══════════════════════════════════════════════════
+// ③ FEED CALCULATOR (pure JS)
+// ══════════════════════════════════════════════════
+
+function getFeedData(birds, week) {
+  birds = Math.max(1, parseInt(birds) || 20);
+  week  = Math.max(1, parseInt(week)  || 1);
+  const key     = week <= 8 ? 'starter' : week <= 18 ? 'grower' : 'layer';
+  const p       = FEED_PHASES[key];
+  const total_g = birds * p.grams_per_bird;
+  return {
+    birds, week, phase: key,
+    phase_label:    p.label,
+    weeks_range:    p.weeks,
+    grams_per_bird: p.grams_per_bird,
+    protein_min:    p.protein_min,
+    protein_max:    p.protein_max,
+    total_grams:    total_g,
+    total_kg:       Math.round(total_g / 10) / 100,
+    water_liters:   Math.round(total_g * WATER_MULTIPLIER / 10) / 100,
+    bag_days:       total_g > 0 ? Math.round(50000 / total_g * 10) / 10 : 0,
+    purpose:        p.purpose,
+    calcium:        p.calcium,
+    icon:           p.icon,
+  };
+}
+
+function calcFeed() {
+  const birds = document.getElementById('f-birds').value;
+  const week  = document.getElementById('f-week').value;
+  const d     = getFeedData(birds, week);
+
+  document.getElementById('r-phase').textContent   = `${d.icon} ${d.phase_label} (${d.weeks_range})`;
+  document.getElementById('r-gpb').innerHTML       = `${d.grams_per_bird}<small>g / bird</small>`;
+  document.getElementById('r-total').innerHTML     = `${d.total_kg}<small>kg</small>&nbsp;<small style="color:var(--muted)">(${d.total_grams}g)</small>`;
+  document.getElementById('r-protein').innerHTML   = `${d.protein_min}–${d.protein_max}<small>%</small>`;
+  document.getElementById('r-bag').innerHTML       = `${d.bag_days}<small> days</small>`;
+  document.getElementById('r-note').textContent    = `Purpose: ${d.purpose}  ·  Calcium: ${d.calcium}`;
+  document.getElementById('feed-result').classList.add('show');
+
+  // Sync water inputs
+  document.getElementById('w-birds').value = birds;
+  document.getElementById('w-week').value  = week;
+  calcWater();
+}
+
+// ══════════════════════════════════════════════════
+// ④ WATER (pure JS)
+// ══════════════════════════════════════════════════
+
+function calcWater() {
+  const birds      = document.getElementById('w-birds').value;
+  const week       = document.getElementById('w-week').value;
+  const d          = getFeedData(birds, week);
+  const perBirdMl  = d.grams_per_bird * WATER_MULTIPLIER;
+  const hotTotal   = Math.round(d.water_liters * 1.2 * 100) / 100;
+
+  document.getElementById('w-per-bird').innerHTML = `${perBirdMl}<small>mL</small>`;
+  document.getElementById('w-total').innerHTML    = `${d.water_liters}<small>L</small>`;
+  document.getElementById('w-hot').innerHTML      = `${hotTotal}<small>L</small>`;
+  document.getElementById('water-result').classList.add('show');
+}
+
+// ══════════════════════════════════════════════════
+// ⑤ EGG COUNTDOWN (pure JS)
+// ══════════════════════════════════════════════════
+
+function calcBrooding() {
+  const sitStr = document.getElementById('sit-date').value;
+  if (!sitStr) { toast('⚠ Enter the sitting date first', 'var(--red)'); return; }
+
+  // Save sitting date to Firestore so it persists across logins
+  saveBroodingDateToFirestore(sitStr);
+
+  const sit       = new Date(sitStr + 'T00:00:00');
+  const today     = new Date();
+  const hatchDate = addDays(sit, BROODING_DAYS);
+  const elapsed   = Math.max(0, daysDiff(sit, today));
+  const remaining = Math.max(0, BROODING_DAYS - elapsed);
+  const pct       = Math.min(100, Math.max(0, Math.round((elapsed / BROODING_DAYS) * 100)));
+
+  const panel = document.getElementById('brooding-panel');
+  panel.style.opacity = '1';
+
+  document.getElementById('b-hatch-date').textContent = fmtDate(hatchDate);
+  document.getElementById('b-elapsed').textContent    = elapsed;
+  document.getElementById('b-remain').textContent     = remaining;
+  document.getElementById('b-pct').textContent        = pct + '%';
+
+  const bar = document.getElementById('b-prog');
+  bar.style.width = '0%';
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    bar.style.width = pct + '%';
+  }));
+
+  const status = elapsed >= BROODING_DAYS ? 'hatched' : remaining === 0 ? 'today' : 'incubating';
+  if (status === 'hatched')     toast('🐣 Eggs should have hatched! Check nest now.', 'var(--green)');
+  else if (status === 'today')  toast('🥚 Hatch day — watch closely!', 'var(--gold)');
+  else                          toast(`🕐 ${remaining} days until hatch (${pct}% done)`, 'var(--blue)');
+}
+
+// ══════════════════════════════════════════════════
+// ⑥ NUTRITION (pure JS)
+// ══════════════════════════════════════════════════
+
+function loadNutrition() {
+  const wrap = document.getElementById('nut-cards');
+  const cfg  = [
+    { key:'starter', bg:'rgba(245,166,35,0.06)',  bc:'rgba(245,166,35,0.22)' },
+    { key:'grower',  bg:'rgba(76,217,100,0.05)',  bc:'rgba(76,217,100,0.2)'  },
+    { key:'layer',   bg:'rgba(90,200,250,0.05)',  bc:'rgba(90,200,250,0.2)'  },
+  ];
+  cfg.forEach(({ key, bg, bc }, i) => {
+    const p      = FEED_PHASES[key];
+    const pctBar = Math.round((p.protein_max / 25) * 100);
+    const card   = document.createElement('div');
+    card.className = 'nut-card';
+    card.style.cssText = `background:${bg};border-color:${bc};animation:scaleIn 500ms var(--spring) ${300 + i * 110}ms both`;
+    card.innerHTML = `
+      <div class="nut-icon">${p.icon}</div>
+      <div class="nut-label" style="color:${p.color}">${p.label}</div>
+      <div class="nut-weeks">${p.weeks}</div>
+      <div class="nut-protein" style="color:${p.color}">${p.protein_min}–${p.protein_max}</div>
+      <div class="nut-protein-lbl">% crude protein</div>
+      <div class="nut-bar-bg">
+        <div class="nut-bar-fill" style="width:${pctBar}%;background:${p.color};animation-delay:${500 + i * 100}ms"></div>
+      </div>
+      <div class="nut-calcium">🦴 Calcium: <strong style="color:var(--text)">${p.calcium}</strong></div>
+      <div class="nut-purpose">${p.purpose}</div>
+      <ul class="nut-tips">${p.tips.map(t => `<li>${t}</li>`).join('')}</ul>`;
+    wrap.appendChild(card);
+  });
+}
+
+// ══════════════════════════════════════════════════
+// PWA — INSTALL PROMPT
+// ══════════════════════════════════════════════════
+
+let _installPrompt = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _installPrompt = e;
+  // Show banner after 3 seconds if not already installed
+  if (!window.matchMedia('(display-mode: standalone)').matches) {
+    setTimeout(() => {
+      document.getElementById('install-banner').classList.add('show');
+    }, 3000);
+  }
+});
+
+async function installPWA() {
+  if (!_installPrompt) return;
+  _installPrompt.prompt();
+  const { outcome } = await _installPrompt.userChoice;
+  _installPrompt = null;
+  document.getElementById('install-banner').classList.remove('show');
+  if (outcome === 'accepted') {
+    toast('🐔 Nkhuku installed! Find it on your home screen.', 'var(--gold)');
+  }
+}
+
+function dismissInstall() {
+  document.getElementById('install-banner').classList.remove('show');
+  sessionStorage.setItem('nkhuku_install_dismissed', '1');
+}
+
+// ══════════════════════════════════════════════════
+// PWA — SERVICE WORKER REGISTRATION
+// ══════════════════════════════════════════════════
+
+// ── Scroll to top button ──────────────────────────
+window.addEventListener('scroll', () => {
+  const btn = document.getElementById('scroll-top');
+  if (btn) btn.classList.toggle('visible', scrollY > 400);
+}, { passive: true });
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      console.log('SW registered:', reg.scope);
+    }).catch(err => {
+      console.log('SW registration failed:', err);
+    });
+  });
+
+  // Listen for SW_UPDATED message — auto reload to get new version
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data && e.data.type === 'SW_UPDATED') {
+      toast('🔄 App updated — reloading...', 'var(--blue)');
+      setTimeout(() => window.location.reload(), 1500);
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════
+// PWA — ONLINE / OFFLINE INDICATOR
+// ══════════════════════════════════════════════════
+
+const offlineBar = document.getElementById('offline-bar');
+function updateOnlineStatus() {
+  offlineBar.classList.toggle('show', !navigator.onLine);
+}
+window.addEventListener('online',  updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
+
+// ══════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════
+
+window.addEventListener('DOMContentLoaded', () => {
+  const today = todayISO();
+  document.getElementById('hatch-date').value = today;
+  document.getElementById('sit-date').value   = today;
+
+  // Load all modules (all pure JS — no server needed)
+  loadBrooder();
+  loadVaccines();
+  loadNutrition();
+  calcFeed();
+
+  // Check stored reminders on open
+  checkStoredReminders();
+
+  // Card entrance stagger animation
+  document.querySelectorAll('.card').forEach((c, i) => {
+    c.style.cssText += `
+      opacity:0;
+      transform:scale(0.95) translateY(14px);
+      transition:opacity 480ms var(--ease),transform 480ms var(--spring);
+    `;
+    setTimeout(() => {
+      c.style.opacity   = '1';
+      c.style.transform = 'none';
+    }, 680 + i * 75);
+  });
+});
+
+// ══════════════════════════════════════════════════
+// FIREBASE AUTH — Email/Password · Google · Facebook
+// ══════════════════════════════════════════════════
+
+// Wait for the Firebase module script to expose _fb
+async function getFirebase() {
+  let tries = 0;
+  while (!window._fb && tries++ < 50) {
+    await new Promise(r => setTimeout(r, 100));
+  }
+  if (!window._fb) throw new Error('Firebase SDK failed to load. Check your config.');
+  return window._fb;
+}
+
+// ── UI helpers ────────────────────────────────────
+
+function switchTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('tab-login').classList.toggle('active',  isLogin);
+  document.getElementById('tab-signup').classList.toggle('active', !isLogin);
+  document.getElementById('step-login').classList.toggle('active',  isLogin);
+  document.getElementById('step-signup').classList.toggle('active', !isLogin);
+  clearErrors();
+}
+
+function clearErrors() {
+  ['login-error','login-success','signup-error','signup-success'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = ''; el.className = el.className.replace(' show',''); }
+  });
+}
+
+function showMsg(elId, msg, isError = true) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+function setBtnLoading(btnId, loading) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.classList.toggle('loading', loading);
+  btn.disabled = loading;
+}
+
+function togglePw(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁';
+}
+
+function friendlyError(code) {
+  const map = {
+    'auth/invalid-email':           'Invalid email address.',
+    'auth/user-not-found':          'No account found with this email.',
+    'auth/wrong-password':          'Incorrect password. Try again.',
+    'auth/email-already-in-use':    'An account with this email already exists. Try logging in.',
+    'auth/weak-password':           'Password must be at least 6 characters.',
+    'auth/too-many-requests':       'Too many attempts. Please wait a few minutes and try again.',
+    'auth/popup-closed-by-user':    'Sign-in popup was closed. Please try again.',
+    'auth/account-exists-with-different-credential':
+                                    'An account already exists with this email using a different sign-in method.',
+    'auth/network-request-failed':  'Network error. Check your internet connection.',
+    'auth/invalid-credential':      'Incorrect email or password.',
+  };
+  return map[code] || 'Something went wrong. Please try again.';
+}
+
+// ── On successful authentication ─────────────────
+
+// ══════════════════════════════════════════════════
+// FIRESTORE — Save & Load user data (hatch date etc)
+// ══════════════════════════════════════════════════
+
+async function loadRemindersFromFirestore(uid) {
+  // Loads recurring_reminders from Firestore and syncs into localStorage
+  // so the vaccine schedule shows the correct "✅ Set" button state
+  try {
+    const fb = await getFirebase();
+    const { collection, getDocs, query, where } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const fb2   = await getFirebase();
+    const email = fb2.auth.currentUser?.email;
+    if (!email) return;
+    const snap  = await getDocs(query(
+      collection(fb.db, 'recurring_reminders'),
+      where('userEmail', '==', email)
+    ));
+    const reminders = [];
+    snap.forEach(d => {
+      const r = d.data();
+      reminders.push({ vaccine: r.vaccine, day: parseInt(d.id.split('_day')[1]) || 0, date: r.nextDueDate, method: r.method, email });
+    });
+    localStorage.setItem('nkhuku_reminders', JSON.stringify(reminders));
+    console.log('Loaded', reminders.length, 'reminders from Firestore');
+    // Refresh vaccine UI to show correct Set state
+    const hatchStr = document.getElementById('hatch-date').value;
+    if (hatchStr) loadVaccines();
+  } catch(e) {
+    console.warn('Could not load reminders:', e.message);
+  }
+}
+
+async function saveBroodingDateToFirestore(sitStr) {
+  try {
+    const fb   = await getFirebase();
+    const user = fb.auth.currentUser;
+    if (!user) return;
+    await fb.setDoc(fb.doc(fb.db, 'users', user.uid), {
+      sitDate:     sitStr,
+      email:       user.email,
+      displayName: user.displayName || user.email?.split('@')[0] || 'Farmer',
+      updatedAt:   new Date().toISOString(),
+    }, { merge: true });
+    console.log('brooding date saved:', sitStr);
+  } catch(e) {
+    console.warn('Could not save brooding date:', e.message);
+  }
+}
+
+async function saveHatchDateToFirestore(hatchStr) {
+  try {
+    const fb   = await getFirebase();
+    const user = fb.auth.currentUser;
+    if (!user) return;
+    await fb.setDoc(fb.doc(fb.db, 'users', user.uid), {
+      hatchDate:   hatchStr,
+      email:       user.email,
+      displayName: user.displayName || user.email?.split('@')[0] || 'Farmer',
+      updatedAt:   new Date().toISOString(),
+    }, { merge: true });
+    console.log('hatch date saved:', hatchStr);
+  } catch(e) {
+    console.warn('Could not save hatch date:', e.message);
+  }
+}
+
+async function loadUserDataFromFirestore(user) {
+  try {
+    const fb   = await getFirebase();
+    const snap = await fb.getDoc(fb.doc(fb.db, 'users', user.uid));
+    if (snap.exists()) {
+      const data = snap.data();
+      console.log('loaded user data:', JSON.stringify(data));
+      if (data.hatchDate) {
+        document.getElementById('hatch-date').value = data.hatchDate;
+        loadVaccines();
+      }
+      if (data.sitDate) {
+        document.getElementById('sit-date').value = data.sitDate;
+        calcBrooding();
+      }
+      // Restore reminder state from Firestore recurring_reminders
+      loadRemindersFromFirestore(user.uid);
+    } else {
+      console.log('no saved data for user', user.uid);
+      loadRemindersFromFirestore(user.uid);
+    }
+  } catch(e) {
+    console.warn('Could not load user data:', e.message);
+  }
+}
+
+async function onAuthSuccess(user) {
+  // ── Check allowed_users whitelist ─────────────
+  try {
+    const fb = await getFirebase();
+    const { getDocs, collection, query, where } = await import(
+      'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js'
+    );
+    const q      = query(collection(fb.db, 'allowed_users'), where('email', '==', user.email));
+    const result = await getDocs(q);
+    if (result.empty) {
+      await fb.signOut(fb.auth);
+      document.getElementById('auth-screen').classList.remove('hidden');
+      const errId = document.getElementById('step-login').classList.contains('active')
+        ? 'login-error' : 'signup-error';
+      showMsg(errId, '🚫 Access denied. Your email is not authorised. Contact the administrator.');
+      return;
+    }
+  } catch(err) {
+    console.warn('Whitelist check failed:', err.message);
+    // If Firestore unreachable (offline), allow through — fail open
+  }
+
+  // ── Authorised — show the app ─────────────────
+  const displayName = user.displayName || user.email?.split('@')[0] || 'Farmer';
+  const initials    = displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+
+  const avatarEl = document.getElementById('nav-avatar');
+  if (user.photoURL) {
+    avatarEl.innerHTML = `<img src="${user.photoURL}" alt="${displayName}"/>`;
+  } else {
+    avatarEl.textContent = initials;
+  }
+  document.getElementById('nav-name').textContent = displayName;
+  document.getElementById('nav-user').classList.add('visible');
+  document.getElementById('auth-screen').classList.add('hidden');
+
+  // Check if this user is an admin
+  checkAdminAccess(user.email);
+
+  // Restore saved hatch date and vaccine schedule from Firestore
+  loadUserDataFromFirestore(user);
+
+  toast(`👋 Welcome, ${displayName.split(' ')[0]}!`, 'var(--gold)');
+}
+
+// ── Email / Password — Log In ─────────────────────
+
+async function authEmailLogin() {
+  clearErrors();
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+
+  if (!email)    { showMsg('login-error', 'Please enter your email address.'); return; }
+  if (!password) { showMsg('login-error', 'Please enter your password.'); return; }
+
+  setBtnLoading('btn-login', true);
+  try {
+    const { auth, signInWithEmailAndPassword } = await getFirebase();
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    onAuthSuccess(cred.user);
+  } catch (err) {
+    console.error('Login error:', err);
+    showMsg('login-error', friendlyError(err.code));
+    setBtnLoading('btn-login', false);
+  }
+}
+
+// ── Email / Password — Sign Up ────────────────────
+
+async function authEmailSignup() {
+  clearErrors();
+  const name     = document.getElementById('signup-name').value.trim();
+  const email    = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value;
+  const confirm  = document.getElementById('signup-confirm').value;
+
+  if (!name)              { showMsg('signup-error', 'Please enter your full name.'); return; }
+  if (!email)             { showMsg('signup-error', 'Please enter your email address.'); return; }
+  if (password.length < 6){ showMsg('signup-error', 'Password must be at least 6 characters.'); return; }
+  if (password !== confirm){ showMsg('signup-error', 'Passwords do not match.'); return; }
+
+  setBtnLoading('btn-signup', true);
+  try {
+    const { auth, createUserWithEmailAndPassword, updateProfile, db, doc, setDoc } = await getFirebase();
+
+    // Create the account
+    const cred = await createUserWithEmailAndPassword(auth, email, password);
+
+    // Set display name
+    await updateProfile(cred.user, { displayName: name });
+
+    // Save profile to Firestore
+    await setDoc(doc(db, 'users', cred.user.uid), {
+      name,
+      email,
+      createdAt: new Date().toISOString(),
+      provider: 'email',
+    });
+
+    onAuthSuccess({ ...cred.user, displayName: name });
+  } catch (err) {
+    console.error('Signup error:', err);
+    showMsg('signup-error', friendlyError(err.code));
+    setBtnLoading('btn-signup', false);
+  }
+}
+
+// ── Forgot Password ───────────────────────────────
+
+async function authForgotPassword() {
+  clearErrors();
+  const email = document.getElementById('login-email').value.trim();
+  if (!email) {
+    showMsg('login-error', 'Enter your email address above first, then click "Forgot password".');
+    return;
+  }
+  try {
+    const { auth, sendPasswordResetEmail } = await getFirebase();
+    await sendPasswordResetEmail(auth, email);
+    showMsg('login-success', `✅ Reset link sent to ${email}. Check your inbox.`, false);
+  } catch (err) {
+    showMsg('login-error', friendlyError(err.code));
+  }
+}
+
+// ── Google Sign-In ────────────────────────────────
+
+async function authGoogle() {
+  clearErrors();
+  try {
+    const { auth, signInWithPopup, googleProvider, db, doc, setDoc } = await getFirebase();
+    const cred = await signInWithPopup(auth, googleProvider);
+    const user = cred.user;
+
+    // Save to Firestore on first sign-in
+    await setDoc(doc(db, 'users', user.uid), {
+      name:      user.displayName,
+      email:     user.email,
+      photoURL:  user.photoURL,
+      provider:  'google',
+      lastLogin: new Date().toISOString(),
+    }, { merge: true });
+
+    onAuthSuccess(user);
+  } catch (err) {
+    console.error('Google auth error:', err);
+    const errId = document.getElementById('step-login').classList.contains('active')
+      ? 'login-error' : 'signup-error';
+    showMsg(errId, friendlyError(err.code));
+  }
+}
+
+// ── Facebook Sign-In ──────────────────────────────
+
+async function authFacebook() {
+  clearErrors();
+  try {
+    const { auth, signInWithPopup, facebookProvider, db, doc, setDoc } = await getFirebase();
+    const cred = await signInWithPopup(auth, facebookProvider);
+    const user = cred.user;
+
+    await setDoc(doc(db, 'users', user.uid), {
+      name:      user.displayName,
+      email:     user.email,
+      photoURL:  user.photoURL,
+      provider:  'facebook',
+      lastLogin: new Date().toISOString(),
+    }, { merge: true });
+
+    onAuthSuccess(user);
+  } catch (err) {
+    console.error('Facebook auth error:', err);
+    const errId = document.getElementById('step-login').classList.contains('active')
+      ? 'login-error' : 'signup-error';
+    showMsg(errId, friendlyError(err.code));
+  }
+}
+
+// ── Sign Out ──────────────────────────────────────
+
+async function authSignOut() {
+  if (!confirm('Sign out of Nkhuku?')) return;
+  try {
+    const { auth, signOut } = await getFirebase();
+    await signOut(auth);
+  } catch(_) {}
+
+  document.getElementById('nav-user').classList.remove('visible');
+  document.getElementById('auth-screen').classList.remove('hidden');
+  // Always hide admin panel on sign out regardless of who was logged in
+  document.getElementById('admin-nav-pill').style.display = 'none';
+  document.getElementById('admin-panel').style.display    = 'none';
+  clearErrors();
+  switchTab('login');
+}
+
+// ── Persist session across page refreshes ─────────
+
+async function checkExistingSession() {
+  try {
+    const { auth, onAuthStateChanged } = await getFirebase();
+    onAuthStateChanged(auth, user => {
+      if (user) onAuthSuccess(user);
+    });
+  } catch (err) {
+    console.warn('Session check failed:', err.message);
+  }
+}
+
+// ── Keyboard shortcuts ────────────────────────────
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  if (document.getElementById('step-login').classList.contains('active')) {
+    authEmailLogin();
+  } else if (document.getElementById('step-signup').classList.contains('active')) {
+    authEmailSignup();
+  }
+});
+
+// ══════════════════════════════════════════════════
+// ADMIN PANEL — only visible to admin emails
+// ══════════════════════════════════════════════════
+
+const ADMIN_EMAILS = ['ligangaj@gmail.com']; // ← add more admin emails here
+
+function checkAdminAccess(email) {
+  if (ADMIN_EMAILS.includes(email)) {
+    document.getElementById('admin-nav-pill').style.display = '';
+    document.getElementById('admin-panel').style.display = '';
+    loadAdminData();
+  }
+}
+
+async function loadAdminData() {
+  const { db, collection, getDocs, addDoc, deleteDoc, doc, serverTimestamp } = await getFirebaseAdmin();
+
+  // Stats
+  try {
+    const usersSnap    = await getDocs(collection(db, 'allowed_users'));
+    const accountsSnap = await getDocs(collection(db, 'users'));
+    const remSnap      = await getDocs(collection(db, 'recurring_reminders'));
+    document.getElementById('as-users').textContent    = usersSnap.size;
+    document.getElementById('as-accounts').textContent = accountsSnap.size;
+    document.getElementById('as-reminders').textContent= remSnap.size;
+
+    // Users table
+    const tbody = document.getElementById('admin-users-tbody');
+    tbody.innerHTML = '';
+    if (usersSnap.empty) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">No users yet</td></tr>';
+    } else {
+      usersSnap.forEach(docSnap => {
+        const d     = docSnap.data();
+        const email = d.email || '—';
+        const name  = d.name  || '—';
+        const added = d.addedAt?.toDate
+          ? d.addedAt.toDate().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})
+          : '—';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="font-size:0.8rem">${email}</td>
+          <td style="color:var(--muted);font-size:0.8rem">${name}</td>
+          <td style="color:var(--muted);font-size:0.75rem">${added}</td>
+          <td>
+            <button class="admin-btn-remove" onclick="adminRemoveUser('${docSnap.id}','${email}')">Remove</button>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Reminders list
+    const remList = document.getElementById('admin-reminders-list');
+    remList.innerHTML = '';
+    if (remSnap.empty) {
+      remList.innerHTML = '<div style="color:var(--muted);font-size:0.82rem;padding:12px 0">No recurring reminders set yet.</div>';
+    } else {
+      remSnap.forEach(docSnap => {
+        const d   = docSnap.data();
+        const div = document.createElement('div');
+        div.className = 'admin-reminder-row';
+        div.innerHTML = `
+          <div>
+            <div class="admin-reminder-vaccine">💉 ${d.vaccine || '—'}</div>
+            <div class="admin-reminder-meta">👤 ${d.userEmail || '—'} &nbsp;|&nbsp; 📅 Next: ${d.nextDueDate || '—'} &nbsp;|&nbsp; 🔁 Every ${d.recurringDays || '—'} days</div>
+          </div>`;
+        remList.appendChild(div);
+      });
+    }
+
+  } catch(e) { console.error('Admin load error:', e); }
+}
+
+async function getFirebaseAdmin() {
+  // Use already-loaded window._fb — avoids duplicate module instance bugs
+  const fb = await getFirebase();
+  const { collection, getDocs, addDoc, deleteDoc, doc, serverTimestamp } =
+    await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+  return { db: fb.db, collection, getDocs, addDoc, deleteDoc, doc, serverTimestamp };
+}
+
+window.adminAddUser = async function() {
+  const email = document.getElementById('au-email').value.trim().toLowerCase();
+  const name  = document.getElementById('au-name').value.trim();
+  const btn   = document.querySelector('.admin-btn-add');
+  if (!email || !email.includes('@')) { toast('⚠ Enter a valid email', 'var(--red)'); return; }
+  btn.textContent = 'Adding...'; btn.disabled = true;
+  try {
+    const { db, collection, addDoc, serverTimestamp } = await getFirebaseAdmin();
+    await addDoc(collection(db, 'allowed_users'), {
+      email, name: name || '',
+      addedAt: serverTimestamp(),
+      addedBy: (await getFirebase()).auth.currentUser?.email || 'admin',
+    });
+    document.getElementById('au-email').value = '';
+    document.getElementById('au-name').value  = '';
+    toast(`✅ ${email} added`);
+    loadAdminData();
+  } catch(e) { toast('⚠ ' + e.message, 'var(--red)'); }
+  btn.textContent = '+ Add'; btn.disabled = false;
+};
+
+window.adminRemoveUser = async function(docId, email) {
+  if (!confirm(`Remove ${email} from allowed users?`)) return;
+  try {
+    const { db, doc, deleteDoc } = await getFirebaseAdmin();
+    await deleteDoc(doc(db, 'allowed_users', docId));
+    toast(`🗑 ${email} removed`, 'var(--red)');
+    loadAdminData();
+  } catch(e) { toast('⚠ ' + e.message, 'var(--red)'); }
+};
+
+// ── Boot ──────────────────────────────────────────
+checkExistingSession();
+</script>
+</body>
+</html>
