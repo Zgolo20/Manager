@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Nkhuku</string>
+
+    <!-- ══════════════════════════════════════════
+         YOUR NETLIFY URL — change this if your
+         domain ever changes
+    ═══════════════════════════════════════════ -->
+    <string name="app_url">https://nkhuku.netlify.app</string>
+
+    <string name="asset_statements">
+        [{
+            \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+            \"target\": {
+                \"namespace\": \"web\",
+                \"site\": \"https://nkhuku.netlify.app\"
+            }
+        }]
+    </string>
+</resources>
